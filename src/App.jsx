@@ -17,7 +17,8 @@ import {
 } from "lucide-react";
 import { supabase } from "./lib/supabase";
 
-const posterSizes = ["3040", "4060", "5070", "6080"];
+const posterRectSizes = ["3040", "4060", "5070", "6080"];
+const posterSquareSizes = ["4040", "6060"];
 const canvasSquareSizes = ["4040", "6060", "7070"];
 const canvasRectSizes = ["3040", "4060", "5070"];
 const aluminumSizes = ["3040", "4060", "5070", "6080", "4040", "6060"];
@@ -53,12 +54,19 @@ const emptyPoster = () => ({
   seo: "",
   name: "",
   site: "",
-  stockBySize: makeStockMap(posterSizes),
-  alertBySize: makeStockMap(posterSizes),
-  lastInDateBySize: makeDateMap(posterSizes),
-  lastOutDateBySize: makeDateMap(posterSizes),
-  movementDraftBySize: makeMovementMap(posterSizes),
-  historyBySize: makeHistoryMap(posterSizes),
+  posterType: "rect",
+  rectStock: makeStockMap(posterRectSizes),
+  rectAlert: makeStockMap(posterRectSizes),
+  rectLastInDate: makeDateMap(posterRectSizes),
+  rectLastOutDate: makeDateMap(posterRectSizes),
+  rectMovementDraft: makeMovementMap(posterRectSizes),
+  rectHistory: makeHistoryMap(posterRectSizes),
+  squareStock: makeStockMap(posterSquareSizes),
+  squareAlert: makeStockMap(posterSquareSizes),
+  squareLastInDate: makeDateMap(posterSquareSizes),
+  squareLastOutDate: makeDateMap(posterSquareSizes),
+  squareMovementDraft: makeMovementMap(posterSquareSizes),
+  squareHistory: makeHistoryMap(posterSquareSizes),
   updatedAt: new Date().toISOString(),
 });
 
@@ -103,16 +111,22 @@ const demoData = {
       seo: "북유럽 감성 포스터",
       name: "라인드로잉 플라워",
       site: "https://example.com/poster-1",
-      stockBySize: { "3040": 12, "4060": 7, "5070": 4, "6080": 2 },
-      alertBySize: { "3040": 5, "4060": 3, "5070": 2, "6080": 3 },
-      lastInDateBySize: { "3040": "2026-04-18", "4060": "2026-04-17", "5070": "2026-04-10", "6080": "2026-04-05" },
-      lastOutDateBySize: { "3040": "2026-04-21", "4060": "2026-04-19", "5070": "2026-04-20", "6080": "2026-04-12" },
-      historyBySize: {
+      posterType: "rect",
+      rectStock: { "3040": 12, "4060": 7, "5070": 4, "6080": 2 },
+      rectAlert: { "3040": 5, "4060": 3, "5070": 2, "6080": 3 },
+      rectLastInDate: { "3040": "2026-04-18", "4060": "2026-04-17", "5070": "2026-04-10", "6080": "2026-04-05" },
+      rectLastOutDate: { "3040": "2026-04-21", "4060": "2026-04-19", "5070": "2026-04-20", "6080": "2026-04-12" },
+      rectHistory: {
         "3040": [{ id: crypto.randomUUID(), type: "출고", qty: 2, date: "2026-04-21", stockAfter: 12 }],
         "4060": [],
         "5070": [],
         "6080": [{ id: crypto.randomUUID(), type: "출고", qty: 1, date: "2026-04-12", stockAfter: 2 }],
       },
+      squareStock: { "4040": 0, "6060": 0 },
+      squareAlert: { "4040": 0, "6060": 0 },
+      squareLastInDate: { "4040": "", "6060": "" },
+      squareLastOutDate: { "4040": "", "6060": "" },
+      squareHistory: { "4040": [], "6060": [] },
     },
   ],
   canvas: [
@@ -164,12 +178,18 @@ function hydrateData(raw) {
     poster: (base.poster || []).map((item) => ({
       ...emptyPoster(),
       ...item,
-      stockBySize: { ...makeStockMap(posterSizes), ...(item.stockBySize || {}) },
-      alertBySize: { ...makeStockMap(posterSizes), ...(item.alertBySize || {}) },
-      lastInDateBySize: { ...makeDateMap(posterSizes), ...(item.lastInDateBySize || {}) },
-      lastOutDateBySize: { ...makeDateMap(posterSizes), ...(item.lastOutDateBySize || {}) },
-      movementDraftBySize: { ...makeMovementMap(posterSizes), ...(item.movementDraftBySize || {}) },
-      historyBySize: { ...makeHistoryMap(posterSizes), ...(item.historyBySize || {}) },
+      rectStock: { ...makeStockMap(posterRectSizes), ...(item.rectStock || {}) },
+      rectAlert: { ...makeStockMap(posterRectSizes), ...(item.rectAlert || {}) },
+      rectLastInDate: { ...makeDateMap(posterRectSizes), ...(item.rectLastInDate || {}) },
+      rectLastOutDate: { ...makeDateMap(posterRectSizes), ...(item.rectLastOutDate || {}) },
+      rectMovementDraft: { ...makeMovementMap(posterRectSizes), ...(item.rectMovementDraft || {}) },
+      rectHistory: { ...makeHistoryMap(posterRectSizes), ...(item.rectHistory || {}) },
+      squareStock: { ...makeStockMap(posterSquareSizes), ...(item.squareStock || {}) },
+      squareAlert: { ...makeStockMap(posterSquareSizes), ...(item.squareAlert || {}) },
+      squareLastInDate: { ...makeDateMap(posterSquareSizes), ...(item.squareLastInDate || {}) },
+      squareLastOutDate: { ...makeDateMap(posterSquareSizes), ...(item.squareLastOutDate || {}) },
+      squareMovementDraft: { ...makeMovementMap(posterSquareSizes), ...(item.squareMovementDraft || {}) },
+      squareHistory: { ...makeHistoryMap(posterSquareSizes), ...(item.squareHistory || {}) },
     })),
     canvas: (base.canvas || []).map((item) => ({
       ...emptyCanvas(),
@@ -206,15 +226,26 @@ function getDisplayName(tab, item) {
 
 function getCompactRows(tab, item) {
   if (tab === "poster") {
-    return posterSizes.map((size) => ({
-      key: size,
-      label: size,
-      qty: safeNumber(item.stockBySize?.[size]),
-      alertQty: safeNumber(item.alertBySize?.[size]),
-      history: item.historyBySize?.[size] || [],
-      lastIn: item.lastInDateBySize?.[size] || "",
-      lastOut: item.lastOutDateBySize?.[size] || "",
-    }));
+    return [
+      ...posterRectSizes.map((size) => ({
+        key: `rect-${size}`,
+        label: `직 ${size}`,
+        qty: safeNumber(item.rectStock?.[size]),
+        alertQty: safeNumber(item.rectAlert?.[size]),
+        history: item.rectHistory?.[size] || [],
+        lastIn: item.rectLastInDate?.[size] || "",
+        lastOut: item.rectLastOutDate?.[size] || "",
+      })),
+      ...posterSquareSizes.map((size) => ({
+        key: `square-${size}`,
+        label: `정 ${size}`,
+        qty: safeNumber(item.squareStock?.[size]),
+        alertQty: safeNumber(item.squareAlert?.[size]),
+        history: item.squareHistory?.[size] || [],
+        lastIn: item.squareLastInDate?.[size] || "",
+        lastOut: item.squareLastOutDate?.[size] || "",
+      })),
+    ];
   }
   if (tab === "canvas") {
     return [
@@ -264,12 +295,19 @@ function normalizeDbItem(row) {
     return {
       ...emptyPoster(),
       ...base,
-      stockBySize: row.stock_data || makeStockMap(posterSizes),
-      alertBySize: row.alert_data || makeStockMap(posterSizes),
-      lastInDateBySize: row.last_in_data || makeDateMap(posterSizes),
-      lastOutDateBySize: row.last_out_data || makeDateMap(posterSizes),
-      historyBySize: row.history_data || makeHistoryMap(posterSizes),
-      movementDraftBySize: makeMovementMap(posterSizes),
+      posterType: row.stock_data?.posterType || "rect",
+      rectStock: row.stock_data?.rectStock || makeStockMap(posterRectSizes),
+      squareStock: row.stock_data?.squareStock || makeStockMap(posterSquareSizes),
+      rectAlert: row.alert_data?.rectAlert || makeStockMap(posterRectSizes),
+      squareAlert: row.alert_data?.squareAlert || makeStockMap(posterSquareSizes),
+      rectLastInDate: row.last_in_data?.rectLastInDate || makeDateMap(posterRectSizes),
+      squareLastInDate: row.last_in_data?.squareLastInDate || makeDateMap(posterSquareSizes),
+      rectLastOutDate: row.last_out_data?.rectLastOutDate || makeDateMap(posterRectSizes),
+      squareLastOutDate: row.last_out_data?.squareLastOutDate || makeDateMap(posterSquareSizes),
+      rectHistory: row.history_data?.rectHistory || makeHistoryMap(posterRectSizes),
+      squareHistory: row.history_data?.squareHistory || makeHistoryMap(posterSquareSizes),
+      rectMovementDraft: makeMovementMap(posterRectSizes),
+      squareMovementDraft: makeMovementMap(posterSquareSizes),
     };
   }
 
@@ -314,11 +352,27 @@ function buildPayload(tab, item) {
   };
 
   if (tab === "poster") {
-    payload.stock_data = item.stockBySize;
-    payload.alert_data = item.alertBySize;
-    payload.last_in_data = item.lastInDateBySize;
-    payload.last_out_data = item.lastOutDateBySize;
-    payload.history_data = item.historyBySize;
+    payload.stock_data = {
+      posterType: item.posterType || "rect",
+      rectStock: item.rectStock,
+      squareStock: item.squareStock,
+    };
+    payload.alert_data = {
+      rectAlert: item.rectAlert,
+      squareAlert: item.squareAlert,
+    };
+    payload.last_in_data = {
+      rectLastInDate: item.rectLastInDate,
+      squareLastInDate: item.squareLastInDate,
+    };
+    payload.last_out_data = {
+      rectLastOutDate: item.rectLastOutDate,
+      squareLastOutDate: item.squareLastOutDate,
+    };
+    payload.history_data = {
+      rectHistory: item.rectHistory,
+      squareHistory: item.squareHistory,
+    };
   }
 
   if (tab === "canvas") {
@@ -785,7 +839,12 @@ function App() {
                         </button>
                       </div>
 
-                      {tab === "poster" && <DetailSection title="포스터 상세" rows={rows} />}
+                      {tab === "poster" && (
+                        <div className="space-y-4">
+                          <DetailSection title="직사각형 포스터 (3040 / 4060 / 5070 / 6080)" rows={rows.filter((r) => r.key.startsWith("rect-"))} />
+                          <DetailSection title="정사각형 포스터 (4040 / 6060)" rows={rows.filter((r) => r.key.startsWith("square-"))} />
+                        </div>
+                      )}
                       {tab === "canvas" && (
                         <div className="space-y-4">
                           <DetailSection title="정사각형 형태" rows={rows.filter((r) => r.key.startsWith("square-"))} />
@@ -817,20 +876,43 @@ function App() {
                 <Field label="SEO"><input value={form.seo || ""} onChange={(e) => setForm({ ...form, seo: e.target.value })} className={inputClass} /></Field>
                 <Field label="품명"><input value={form.name || ""} onChange={(e) => setForm({ ...form, name: e.target.value })} className={inputClass} /></Field>
                 <Field label="관련 사이트"><input value={form.site || ""} onChange={(e) => setForm({ ...form, site: e.target.value })} className={inputClass} placeholder="https://..." /></Field>
-                <SizeEditor
-                  title="포스터 사이즈별 관리"
-                  sizes={posterSizes}
-                  values={form.stockBySize}
-                  alertValues={form.alertBySize}
-                  inDateValues={form.lastInDateBySize}
-                  outDateValues={form.lastOutDateBySize}
-                  movementValues={form.movementDraftBySize}
-                  onChange={(size, value) => updateNested("stockBySize", size, value)}
-                  onAlertChange={(size, value) => updateNested("alertBySize", size, value)}
-                  onMovementChange={(size, field, value) => updateMovement("movementDraftBySize", size, field, value)}
-                  onApplyIn={(size) => applyMovement("stockBySize", "lastInDateBySize", "lastOutDateBySize", "movementDraftBySize", "historyBySize", size, "in")}
-                  onApplyOut={(size) => applyMovement("stockBySize", "lastInDateBySize", "lastOutDateBySize", "movementDraftBySize", "historyBySize", size, "out")}
-                />
+                <Field label="포스터 형태 선택">
+                  <select value={form.posterType || "rect"} onChange={(e) => setForm({ ...form, posterType: e.target.value })} className={inputClass}>
+                    <option value="rect">직사각형 타입 (3040 / 4060 / 5070 / 6080)</option>
+                    <option value="square">정사각형 타입 (4040 / 6060)</option>
+                  </select>
+                </Field>
+                {form.posterType === "rect" ? (
+                  <SizeEditor
+                    title="직사각형 포스터 사이즈별 관리"
+                    sizes={posterRectSizes}
+                    values={form.rectStock}
+                    alertValues={form.rectAlert}
+                    inDateValues={form.rectLastInDate}
+                    outDateValues={form.rectLastOutDate}
+                    movementValues={form.rectMovementDraft}
+                    onChange={(size, value) => updateNested("rectStock", size, value)}
+                    onAlertChange={(size, value) => updateNested("rectAlert", size, value)}
+                    onMovementChange={(size, field, value) => updateMovement("rectMovementDraft", size, field, value)}
+                    onApplyIn={(size) => applyMovement("rectStock", "rectLastInDate", "rectLastOutDate", "rectMovementDraft", "rectHistory", size, "in")}
+                    onApplyOut={(size) => applyMovement("rectStock", "rectLastInDate", "rectLastOutDate", "rectMovementDraft", "rectHistory", size, "out")}
+                  />
+                ) : (
+                  <SizeEditor
+                    title="정사각형 포스터 사이즈별 관리"
+                    sizes={posterSquareSizes}
+                    values={form.squareStock}
+                    alertValues={form.squareAlert}
+                    inDateValues={form.squareLastInDate}
+                    outDateValues={form.squareLastOutDate}
+                    movementValues={form.squareMovementDraft}
+                    onChange={(size, value) => updateNested("squareStock", size, value)}
+                    onAlertChange={(size, value) => updateNested("squareAlert", size, value)}
+                    onMovementChange={(size, field, value) => updateMovement("squareMovementDraft", size, field, value)}
+                    onApplyIn={(size) => applyMovement("squareStock", "squareLastInDate", "squareLastOutDate", "squareMovementDraft", "squareHistory", size, "in")}
+                    onApplyOut={(size) => applyMovement("squareStock", "squareLastInDate", "squareLastOutDate", "squareMovementDraft", "squareHistory", size, "out")}
+                  />
+                )}
               </div>
             )}
 
