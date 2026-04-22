@@ -150,8 +150,8 @@ const demoData = {
           },
         ],
       },
-      squareStock: { "4040": 0, "6060": 0 },
-      squareAlert: { "4040": 0, "6060": 0 },
+      squareStock: { "4040": 2, "6060": 1 },
+      squareAlert: { "4040": 0, "6060": 2 },
       squareLastInDate: { "4040": "", "6060": "" },
       squareLastOutDate: { "4040": "", "6060": "" },
       squareHistory: { "4040": [], "6060": [] },
@@ -379,7 +379,7 @@ function getCompactRows(tab, item) {
 
     return targetSizes.map((size) => ({
       key: `${isSquare ? "square" : "rect"}-${size}`,
-      label: `${isSquare ? "정" : "직"} ${size}`,
+      label: `${size}`,
       qty: safeNumber(
         isSquare ? item.squareStock?.[size] : item.rectStock?.[size]
       ),
@@ -402,7 +402,7 @@ function getCompactRows(tab, item) {
     return [
       ...canvasSquareSizes.map((size) => ({
         key: `square-${size}`,
-        label: `정 ${size}`,
+        label: `${size}`,
         qty: safeNumber(item.squareStock?.[size]),
         alertQty: safeNumber(item.squareAlert?.[size]),
         history: item.squareHistory?.[size] || [],
@@ -411,7 +411,7 @@ function getCompactRows(tab, item) {
       })),
       ...canvasRectSizes.map((size) => ({
         key: `rect-${size}`,
-        label: `직 ${size}`,
+        label: `${size}`,
         qty: safeNumber(item.rectStock?.[size]),
         alertQty: safeNumber(item.rectAlert?.[size]),
         history: item.rectHistory?.[size] || [],
@@ -423,7 +423,7 @@ function getCompactRows(tab, item) {
 
   return aluminumSizes.map((size) => ({
     key: size,
-    label: size,
+    label: `${size}`,
     qty: safeNumber(item.stockBySize?.[size]),
     alertQty: safeNumber(item.alertBySize?.[size]),
     history: item.historyBySize?.[size] || [],
