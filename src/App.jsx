@@ -50,9 +50,21 @@ function makeHistoryMap(sizes) {
   return Object.fromEntries(sizes.map((s) => [s, []]));
 }
 
+function sortBySortCode(items) {
+  return [...items].sort((a, b) => {
+    const aCode = String(a.sortCode || "ZZZ999");
+    const bCode = String(b.sortCode || "ZZZ999");
+    return aCode.localeCompare(bCode, undefined, {
+      numeric: true,
+      sensitivity: "base",
+    });
+  });
+}
+
 const emptyPoster = () => ({
   id: crypto.randomUUID(),
   category: "poster",
+  sortCode: "",
   seo: "",
   name: "",
   site: "",
@@ -75,6 +87,7 @@ const emptyPoster = () => ({
 const emptyCanvas = () => ({
   id: crypto.randomUUID(),
   category: "canvas",
+  sortCode: "",
   seo: "",
   name: "",
   site: "",
@@ -96,6 +109,7 @@ const emptyCanvas = () => ({
 const emptyAluminum = () => ({
   id: crypto.randomUUID(),
   category: "aluminum",
+  sortCode: "",
   color: aluminumColors[0],
   stockBySize: makeStockMap(aluminumSizes),
   alertBySize: makeStockMap(aluminumSizes),
@@ -110,6 +124,7 @@ const demoData = {
   poster: [
     {
       ...emptyPoster(),
+      sortCode: "J001",
       seo: "북유럽 감성 포스터",
       name: "라인드로잉 플라워",
       site: "https://example.com/poster-1",
@@ -160,6 +175,7 @@ const demoData = {
   canvas: [
     {
       ...emptyCanvas(),
+      sortCode: "C001",
       seo: "모던 캔버스액자",
       name: "선셋 오렌지",
       site: "https://example.com/canvas-1",
@@ -192,6 +208,7 @@ const demoData = {
   aluminum: [
     {
       ...emptyAluminum(),
+      sortCode: "M001",
       color: "무광 검정",
       stockBySize: {
         "3040": 20,
@@ -249,120 +266,126 @@ function safeNumber(value) {
 function hydrateData(raw) {
   const base = raw || demoData;
   return {
-    poster: (base.poster || []).map((item) => ({
-      ...emptyPoster(),
-      ...item,
-      rectStock: { ...makeStockMap(posterRectSizes), ...(item.rectStock || {}) },
-      rectAlert: { ...makeStockMap(posterRectSizes), ...(item.rectAlert || {}) },
-      rectLastInDate: {
-        ...makeDateMap(posterRectSizes),
-        ...(item.rectLastInDate || {}),
-      },
-      rectLastOutDate: {
-        ...makeDateMap(posterRectSizes),
-        ...(item.rectLastOutDate || {}),
-      },
-      rectMovementDraft: {
-        ...makeMovementMap(posterRectSizes),
-        ...(item.rectMovementDraft || {}),
-      },
-      rectHistory: {
-        ...makeHistoryMap(posterRectSizes),
-        ...(item.rectHistory || {}),
-      },
-      squareStock: {
-        ...makeStockMap(posterSquareSizes),
-        ...(item.squareStock || {}),
-      },
-      squareAlert: {
-        ...makeStockMap(posterSquareSizes),
-        ...(item.squareAlert || {}),
-      },
-      squareLastInDate: {
-        ...makeDateMap(posterSquareSizes),
-        ...(item.squareLastInDate || {}),
-      },
-      squareLastOutDate: {
-        ...makeDateMap(posterSquareSizes),
-        ...(item.squareLastOutDate || {}),
-      },
-      squareMovementDraft: {
-        ...makeMovementMap(posterSquareSizes),
-        ...(item.squareMovementDraft || {}),
-      },
-      squareHistory: {
-        ...makeHistoryMap(posterSquareSizes),
-        ...(item.squareHistory || {}),
-      },
-    })),
-    canvas: (base.canvas || []).map((item) => ({
-      ...emptyCanvas(),
-      ...item,
-      squareStock: {
-        ...makeStockMap(canvasSquareSizes),
-        ...(item.squareStock || {}),
-      },
-      squareAlert: {
-        ...makeStockMap(canvasSquareSizes),
-        ...(item.squareAlert || {}),
-      },
-      squareLastInDate: {
-        ...makeDateMap(canvasSquareSizes),
-        ...(item.squareLastInDate || {}),
-      },
-      squareLastOutDate: {
-        ...makeDateMap(canvasSquareSizes),
-        ...(item.squareLastOutDate || {}),
-      },
-      squareMovementDraft: {
-        ...makeMovementMap(canvasSquareSizes),
-        ...(item.squareMovementDraft || {}),
-      },
-      squareHistory: {
-        ...makeHistoryMap(canvasSquareSizes),
-        ...(item.squareHistory || {}),
-      },
-      rectStock: { ...makeStockMap(canvasRectSizes), ...(item.rectStock || {}) },
-      rectAlert: { ...makeStockMap(canvasRectSizes), ...(item.rectAlert || {}) },
-      rectLastInDate: {
-        ...makeDateMap(canvasRectSizes),
-        ...(item.rectLastInDate || {}),
-      },
-      rectLastOutDate: {
-        ...makeDateMap(canvasRectSizes),
-        ...(item.rectLastOutDate || {}),
-      },
-      rectMovementDraft: {
-        ...makeMovementMap(canvasRectSizes),
-        ...(item.rectMovementDraft || {}),
-      },
-      rectHistory: {
-        ...makeHistoryMap(canvasRectSizes),
-        ...(item.rectHistory || {}),
-      },
-    })),
-    aluminum: (base.aluminum || []).map((item) => ({
-      ...emptyAluminum(),
-      ...item,
-      stockBySize: { ...makeStockMap(aluminumSizes), ...(item.stockBySize || {}) },
-      alertBySize: { ...makeStockMap(aluminumSizes), ...(item.alertBySize || {}) },
-      lastInDateBySize: {
-        ...makeDateMap(aluminumSizes),
-        ...(item.lastInDateBySize || {}),
-      },
-      lastOutDateBySize: {
-        ...makeDateMap(aluminumSizes),
-        ...(item.lastOutDateBySize || {}),
-      },
-      movementDraftBySize: {
-        ...makeMovementMap(aluminumSizes),
-        ...(item.movementDraftBySize || {}),
-      },
-      historyBySize: {
-        ...makeHistoryMap(aluminumSizes),
-        ...(item.historyBySize || {}),
-      },
-    })),
+    poster: sortBySortCode(
+      (base.poster || []).map((item) => ({
+        ...emptyPoster(),
+        ...item,
+        rectStock: { ...makeStockMap(posterRectSizes), ...(item.rectStock || {}) },
+        rectAlert: { ...makeStockMap(posterRectSizes), ...(item.rectAlert || {}) },
+        rectLastInDate: {
+          ...makeDateMap(posterRectSizes),
+          ...(item.rectLastInDate || {}),
+        },
+        rectLastOutDate: {
+          ...makeDateMap(posterRectSizes),
+          ...(item.rectLastOutDate || {}),
+        },
+        rectMovementDraft: {
+          ...makeMovementMap(posterRectSizes),
+          ...(item.rectMovementDraft || {}),
+        },
+        rectHistory: {
+          ...makeHistoryMap(posterRectSizes),
+          ...(item.rectHistory || {}),
+        },
+        squareStock: {
+          ...makeStockMap(posterSquareSizes),
+          ...(item.squareStock || {}),
+        },
+        squareAlert: {
+          ...makeStockMap(posterSquareSizes),
+          ...(item.squareAlert || {}),
+        },
+        squareLastInDate: {
+          ...makeDateMap(posterSquareSizes),
+          ...(item.squareLastInDate || {}),
+        },
+        squareLastOutDate: {
+          ...makeDateMap(posterSquareSizes),
+          ...(item.squareLastOutDate || {}),
+        },
+        squareMovementDraft: {
+          ...makeMovementMap(posterSquareSizes),
+          ...(item.squareMovementDraft || {}),
+        },
+        squareHistory: {
+          ...makeHistoryMap(posterSquareSizes),
+          ...(item.squareHistory || {}),
+        },
+      }))
+    ),
+    canvas: sortBySortCode(
+      (base.canvas || []).map((item) => ({
+        ...emptyCanvas(),
+        ...item,
+        squareStock: {
+          ...makeStockMap(canvasSquareSizes),
+          ...(item.squareStock || {}),
+        },
+        squareAlert: {
+          ...makeStockMap(canvasSquareSizes),
+          ...(item.squareAlert || {}),
+        },
+        squareLastInDate: {
+          ...makeDateMap(canvasSquareSizes),
+          ...(item.squareLastInDate || {}),
+        },
+        squareLastOutDate: {
+          ...makeDateMap(canvasSquareSizes),
+          ...(item.squareLastOutDate || {}),
+        },
+        squareMovementDraft: {
+          ...makeMovementMap(canvasSquareSizes),
+          ...(item.squareMovementDraft || {}),
+        },
+        squareHistory: {
+          ...makeHistoryMap(canvasSquareSizes),
+          ...(item.squareHistory || {}),
+        },
+        rectStock: { ...makeStockMap(canvasRectSizes), ...(item.rectStock || {}) },
+        rectAlert: { ...makeStockMap(canvasRectSizes), ...(item.rectAlert || {}) },
+        rectLastInDate: {
+          ...makeDateMap(canvasRectSizes),
+          ...(item.rectLastInDate || {}),
+        },
+        rectLastOutDate: {
+          ...makeDateMap(canvasRectSizes),
+          ...(item.rectLastOutDate || {}),
+        },
+        rectMovementDraft: {
+          ...makeMovementMap(canvasRectSizes),
+          ...(item.rectMovementDraft || {}),
+        },
+        rectHistory: {
+          ...makeHistoryMap(canvasRectSizes),
+          ...(item.rectHistory || {}),
+        },
+      }))
+    ),
+    aluminum: sortBySortCode(
+      (base.aluminum || []).map((item) => ({
+        ...emptyAluminum(),
+        ...item,
+        stockBySize: { ...makeStockMap(aluminumSizes), ...(item.stockBySize || {}) },
+        alertBySize: { ...makeStockMap(aluminumSizes), ...(item.alertBySize || {}) },
+        lastInDateBySize: {
+          ...makeDateMap(aluminumSizes),
+          ...(item.lastInDateBySize || {}),
+        },
+        lastOutDateBySize: {
+          ...makeDateMap(aluminumSizes),
+          ...(item.lastOutDateBySize || {}),
+        },
+        movementDraftBySize: {
+          ...makeMovementMap(aluminumSizes),
+          ...(item.movementDraftBySize || {}),
+        },
+        historyBySize: {
+          ...makeHistoryMap(aluminumSizes),
+          ...(item.historyBySize || {}),
+        },
+      }))
+    ),
   };
 }
 
@@ -436,6 +459,7 @@ function normalizeDbItem(row) {
   const base = {
     id: row.id,
     category: row.category,
+    sortCode: row.sort_code || "",
     name: row.name || "",
     color: row.color || "",
     seo: row.seo || "",
@@ -509,6 +533,7 @@ function normalizeDbItem(row) {
 function buildPayload(tab, item) {
   const payload = {
     category: tab,
+    sort_code: item.sortCode || null,
     name: tab === "aluminum" ? null : item.name || null,
     color: tab === "aluminum" ? item.color || null : null,
     seo: tab !== "aluminum" ? item.seo || null : null,
@@ -674,19 +699,21 @@ function App() {
 
     if (keyword && tab !== "aluminum") {
       items = items.filter((item) =>
-        [item.name, item.seo]
+        [item.name, item.seo, item.sortCode]
           .filter(Boolean)
           .some((v) => String(v).toLowerCase().includes(keyword))
       );
     }
 
-    if (!showLowStockOnly) return items;
+    if (showLowStockOnly) {
+      items = items.filter((item) =>
+        getCompactRows(tab, item).some(
+          (row) => row.alertQty > 0 && row.qty <= row.alertQty
+        )
+      );
+    }
 
-    return items.filter((item) =>
-      getCompactRows(tab, item).some(
-        (row) => row.alertQty > 0 && row.qty <= row.alertQty
-      )
-    );
+    return sortBySortCode(items);
   }, [data, query, tab, showLowStockOnly]);
 
   function toggleExpanded(id) {
@@ -843,8 +870,8 @@ function App() {
 
         setData((prev) => {
           const list = prev[tab] || [];
-          const nextList = list.map((item) =>
-            item.id === editingId ? updated : item
+          const nextList = sortBySortCode(
+            list.map((item) => (item.id === editingId ? updated : item))
           );
           return { ...prev, [tab]: nextList };
         });
@@ -858,7 +885,10 @@ function App() {
         if (error) throw error;
 
         const normalized = normalizeDbItem(inserted);
-        setData((prev) => ({ ...prev, [tab]: [normalized, ...(prev[tab] || [])] }));
+        setData((prev) => ({
+          ...prev,
+          [tab]: sortBySortCode([normalized, ...(prev[tab] || [])]),
+        }));
       }
 
       closeModal();
@@ -951,8 +981,7 @@ function App() {
             <div>
               <h1 className="text-2xl font-bold tracking-tight">재고 관리 앱</h1>
               <p className="mt-2 text-sm text-slate-600">
-                목록은 한 줄 요약으로 보고, 클릭하면 상세가 열리도록 바꾼 버전입니다.
-                사이즈별 재고 알림 기준과 부족 품목 모아보기를 지원합니다.
+                목록은 정렬코드 기준으로 정렬되고, 검색은 품명/SEO/정렬코드까지 지원합니다.
               </p>
             </div>
 
@@ -1058,13 +1087,22 @@ function App() {
               <input
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="품명 또는 SEO로 검색"
+                placeholder="품명, SEO 또는 코드로 검색"
                 className="w-full rounded-2xl border border-slate-300 bg-slate-50 py-2.5 pl-10 pr-4 outline-none transition focus:border-slate-500"
               />
             </div>
           ) : (
-            <div className="w-full lg:max-w-sm rounded-2xl bg-slate-50 px-4 py-2.5 text-sm text-slate-500 ring-1 ring-slate-200">
-              알루미늄 액자는 검색 기능을 사용하지 않습니다.
+            <div className="relative w-full lg:max-w-sm">
+              <Search
+                className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+                size={18}
+              />
+              <input
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="코드로 검색"
+                className="w-full rounded-2xl border border-slate-300 bg-slate-50 py-2.5 pl-10 pr-4 outline-none transition focus:border-slate-500"
+              />
             </div>
           )}
         </section>
@@ -1096,6 +1134,7 @@ function App() {
                       <div className="flex items-center gap-2">
                         {expanded ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
                         <div className="truncate text-base font-semibold text-slate-900">
+                          {item.sortCode ? `[${item.sortCode}] ` : ""}
                           {getDisplayName(tab, item)}
                         </div>
                         {lowCount > 0 && (
@@ -1105,11 +1144,10 @@ function App() {
                         )}
                       </div>
 
-                      {tab !== "aluminum" && (
-                        <div className="mt-1 pl-7 text-sm text-slate-500">
-                          SEO: {item.seo || "-"}
-                        </div>
-                      )}
+                      <div className="mt-1 pl-7 text-sm text-slate-500">
+                        {item.sortCode ? `코드: ${item.sortCode}` : "코드 없음"}
+                        {tab !== "aluminum" ? ` · SEO: ${item.seo || "-"}` : ""}
+                      </div>
                     </div>
 
                     <div className="flex flex-wrap gap-2 md:justify-end">
@@ -1223,6 +1261,32 @@ function App() {
                 <X size={20} />
               </button>
             </div>
+
+            {(tab === "poster" || tab === "canvas") && (
+              <Field label="정렬코드">
+                <input
+                  value={form.sortCode || ""}
+                  onChange={(e) =>
+                    setForm({ ...form, sortCode: e.target.value.toUpperCase() })
+                  }
+                  className={inputClass}
+                  placeholder={tab === "poster" ? "예: J001" : "예: C001"}
+                />
+              </Field>
+            )}
+
+            {tab === "aluminum" && (
+              <Field label="정렬코드">
+                <input
+                  value={form.sortCode || ""}
+                  onChange={(e) =>
+                    setForm({ ...form, sortCode: e.target.value.toUpperCase() })
+                  }
+                  className={inputClass}
+                  placeholder="예: M001"
+                />
+              </Field>
+            )}
 
             {tab === "poster" && (
               <div className="space-y-4">
