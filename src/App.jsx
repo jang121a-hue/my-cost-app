@@ -18,6 +18,7 @@ import {
 import { supabase } from "./lib/supabase";
 
 const posterRectSizes = ["3040", "4060", "5070", "6080"];
+const posterRectShortSizes = ["3040", "4060", "5070"];
 const posterSquareSizes = ["4040", "6060"];
 const canvasSquareSizes = ["4040", "6060", "7070"];
 const canvasRectSizes = ["3040", "4060", "5070"];
@@ -50,25 +51,13 @@ function makeHistoryMap(sizes) {
   return Object.fromEntries(sizes.map((s) => [s, []]));
 }
 
-function sortBySortCode(items) {
-  return [...items].sort((a, b) => {
-    const aCode = String(a.sortCode || "ZZZ999");
-    const bCode = String(b.sortCode || "ZZZ999");
-    return aCode.localeCompare(bCode, undefined, {
-      numeric: true,
-      sensitivity: "base",
-    });
-  });
-}
-
 const emptyPoster = () => ({
   id: crypto.randomUUID(),
   category: "poster",
-  sortCode: "",
   seo: "",
   name: "",
   site: "",
-  posterType: "rect",
+  posterType: "rectFull",
   rectStock: makeStockMap(posterRectSizes),
   rectAlert: makeStockMap(posterRectSizes),
   rectLastInDate: makeDateMap(posterRectSizes),
@@ -87,7 +76,6 @@ const emptyPoster = () => ({
 const emptyCanvas = () => ({
   id: crypto.randomUUID(),
   category: "canvas",
-  sortCode: "",
   seo: "",
   name: "",
   site: "",
@@ -109,7 +97,6 @@ const emptyCanvas = () => ({
 const emptyAluminum = () => ({
   id: crypto.randomUUID(),
   category: "aluminum",
-  sortCode: "",
   color: aluminumColors[0],
   stockBySize: makeStockMap(aluminumSizes),
   alertBySize: makeStockMap(aluminumSizes),
@@ -124,11 +111,10 @@ const demoData = {
   poster: [
     {
       ...emptyPoster(),
-      sortCode: "J001",
       seo: "북유럽 감성 포스터",
       name: "라인드로잉 플라워",
       site: "https://example.com/poster-1",
-      posterType: "rect",
+      posterType: "rectFull",
       rectStock: { "3040": 12, "4060": 7, "5070": 4, "6080": 2 },
       rectAlert: { "3040": 5, "4060": 3, "5070": 2, "6080": 3 },
       rectLastInDate: {
@@ -165,8 +151,8 @@ const demoData = {
           },
         ],
       },
-      squareStock: { "4040": 2, "6060": 1 },
-      squareAlert: { "4040": 0, "6060": 2 },
+      squareStock: { "4040": 0, "6060": 0 },
+      squareAlert: { "4040": 0, "6060": 0 },
       squareLastInDate: { "4040": "", "6060": "" },
       squareLastOutDate: { "4040": "", "6060": "" },
       squareHistory: { "4040": [], "6060": [] },
@@ -175,7 +161,6 @@ const demoData = {
   canvas: [
     {
       ...emptyCanvas(),
-      sortCode: "C001",
       seo: "모던 캔버스액자",
       name: "선셋 오렌지",
       site: "https://example.com/canvas-1",
@@ -208,7 +193,6 @@ const demoData = {
   aluminum: [
     {
       ...emptyAluminum(),
-      sortCode: "M001",
       color: "무광 검정",
       stockBySize: {
         "3040": 20,
@@ -266,126 +250,120 @@ function safeNumber(value) {
 function hydrateData(raw) {
   const base = raw || demoData;
   return {
-    poster: sortBySortCode(
-      (base.poster || []).map((item) => ({
-        ...emptyPoster(),
-        ...item,
-        rectStock: { ...makeStockMap(posterRectSizes), ...(item.rectStock || {}) },
-        rectAlert: { ...makeStockMap(posterRectSizes), ...(item.rectAlert || {}) },
-        rectLastInDate: {
-          ...makeDateMap(posterRectSizes),
-          ...(item.rectLastInDate || {}),
-        },
-        rectLastOutDate: {
-          ...makeDateMap(posterRectSizes),
-          ...(item.rectLastOutDate || {}),
-        },
-        rectMovementDraft: {
-          ...makeMovementMap(posterRectSizes),
-          ...(item.rectMovementDraft || {}),
-        },
-        rectHistory: {
-          ...makeHistoryMap(posterRectSizes),
-          ...(item.rectHistory || {}),
-        },
-        squareStock: {
-          ...makeStockMap(posterSquareSizes),
-          ...(item.squareStock || {}),
-        },
-        squareAlert: {
-          ...makeStockMap(posterSquareSizes),
-          ...(item.squareAlert || {}),
-        },
-        squareLastInDate: {
-          ...makeDateMap(posterSquareSizes),
-          ...(item.squareLastInDate || {}),
-        },
-        squareLastOutDate: {
-          ...makeDateMap(posterSquareSizes),
-          ...(item.squareLastOutDate || {}),
-        },
-        squareMovementDraft: {
-          ...makeMovementMap(posterSquareSizes),
-          ...(item.squareMovementDraft || {}),
-        },
-        squareHistory: {
-          ...makeHistoryMap(posterSquareSizes),
-          ...(item.squareHistory || {}),
-        },
-      }))
-    ),
-    canvas: sortBySortCode(
-      (base.canvas || []).map((item) => ({
-        ...emptyCanvas(),
-        ...item,
-        squareStock: {
-          ...makeStockMap(canvasSquareSizes),
-          ...(item.squareStock || {}),
-        },
-        squareAlert: {
-          ...makeStockMap(canvasSquareSizes),
-          ...(item.squareAlert || {}),
-        },
-        squareLastInDate: {
-          ...makeDateMap(canvasSquareSizes),
-          ...(item.squareLastInDate || {}),
-        },
-        squareLastOutDate: {
-          ...makeDateMap(canvasSquareSizes),
-          ...(item.squareLastOutDate || {}),
-        },
-        squareMovementDraft: {
-          ...makeMovementMap(canvasSquareSizes),
-          ...(item.squareMovementDraft || {}),
-        },
-        squareHistory: {
-          ...makeHistoryMap(canvasSquareSizes),
-          ...(item.squareHistory || {}),
-        },
-        rectStock: { ...makeStockMap(canvasRectSizes), ...(item.rectStock || {}) },
-        rectAlert: { ...makeStockMap(canvasRectSizes), ...(item.rectAlert || {}) },
-        rectLastInDate: {
-          ...makeDateMap(canvasRectSizes),
-          ...(item.rectLastInDate || {}),
-        },
-        rectLastOutDate: {
-          ...makeDateMap(canvasRectSizes),
-          ...(item.rectLastOutDate || {}),
-        },
-        rectMovementDraft: {
-          ...makeMovementMap(canvasRectSizes),
-          ...(item.rectMovementDraft || {}),
-        },
-        rectHistory: {
-          ...makeHistoryMap(canvasRectSizes),
-          ...(item.rectHistory || {}),
-        },
-      }))
-    ),
-    aluminum: sortBySortCode(
-      (base.aluminum || []).map((item) => ({
-        ...emptyAluminum(),
-        ...item,
-        stockBySize: { ...makeStockMap(aluminumSizes), ...(item.stockBySize || {}) },
-        alertBySize: { ...makeStockMap(aluminumSizes), ...(item.alertBySize || {}) },
-        lastInDateBySize: {
-          ...makeDateMap(aluminumSizes),
-          ...(item.lastInDateBySize || {}),
-        },
-        lastOutDateBySize: {
-          ...makeDateMap(aluminumSizes),
-          ...(item.lastOutDateBySize || {}),
-        },
-        movementDraftBySize: {
-          ...makeMovementMap(aluminumSizes),
-          ...(item.movementDraftBySize || {}),
-        },
-        historyBySize: {
-          ...makeHistoryMap(aluminumSizes),
-          ...(item.historyBySize || {}),
-        },
-      }))
-    ),
+    poster: (base.poster || []).map((item) => ({
+      ...emptyPoster(),
+      ...item,
+      rectStock: { ...makeStockMap(posterRectSizes), ...(item.rectStock || {}) },
+      rectAlert: { ...makeStockMap(posterRectSizes), ...(item.rectAlert || {}) },
+      rectLastInDate: {
+        ...makeDateMap(posterRectSizes),
+        ...(item.rectLastInDate || {}),
+      },
+      rectLastOutDate: {
+        ...makeDateMap(posterRectSizes),
+        ...(item.rectLastOutDate || {}),
+      },
+      rectMovementDraft: {
+        ...makeMovementMap(posterRectSizes),
+        ...(item.rectMovementDraft || {}),
+      },
+      rectHistory: {
+        ...makeHistoryMap(posterRectSizes),
+        ...(item.rectHistory || {}),
+      },
+      squareStock: {
+        ...makeStockMap(posterSquareSizes),
+        ...(item.squareStock || {}),
+      },
+      squareAlert: {
+        ...makeStockMap(posterSquareSizes),
+        ...(item.squareAlert || {}),
+      },
+      squareLastInDate: {
+        ...makeDateMap(posterSquareSizes),
+        ...(item.squareLastInDate || {}),
+      },
+      squareLastOutDate: {
+        ...makeDateMap(posterSquareSizes),
+        ...(item.squareLastOutDate || {}),
+      },
+      squareMovementDraft: {
+        ...makeMovementMap(posterSquareSizes),
+        ...(item.squareMovementDraft || {}),
+      },
+      squareHistory: {
+        ...makeHistoryMap(posterSquareSizes),
+        ...(item.squareHistory || {}),
+      },
+    })),
+    canvas: (base.canvas || []).map((item) => ({
+      ...emptyCanvas(),
+      ...item,
+      squareStock: {
+        ...makeStockMap(canvasSquareSizes),
+        ...(item.squareStock || {}),
+      },
+      squareAlert: {
+        ...makeStockMap(canvasSquareSizes),
+        ...(item.squareAlert || {}),
+      },
+      squareLastInDate: {
+        ...makeDateMap(canvasSquareSizes),
+        ...(item.squareLastInDate || {}),
+      },
+      squareLastOutDate: {
+        ...makeDateMap(canvasSquareSizes),
+        ...(item.squareLastOutDate || {}),
+      },
+      squareMovementDraft: {
+        ...makeMovementMap(canvasSquareSizes),
+        ...(item.squareMovementDraft || {}),
+      },
+      squareHistory: {
+        ...makeHistoryMap(canvasSquareSizes),
+        ...(item.squareHistory || {}),
+      },
+      rectStock: { ...makeStockMap(canvasRectSizes), ...(item.rectStock || {}) },
+      rectAlert: { ...makeStockMap(canvasRectSizes), ...(item.rectAlert || {}) },
+      rectLastInDate: {
+        ...makeDateMap(canvasRectSizes),
+        ...(item.rectLastInDate || {}),
+      },
+      rectLastOutDate: {
+        ...makeDateMap(canvasRectSizes),
+        ...(item.rectLastOutDate || {}),
+      },
+      rectMovementDraft: {
+        ...makeMovementMap(canvasRectSizes),
+        ...(item.rectMovementDraft || {}),
+      },
+      rectHistory: {
+        ...makeHistoryMap(canvasRectSizes),
+        ...(item.rectHistory || {}),
+      },
+    })),
+    aluminum: (base.aluminum || []).map((item) => ({
+      ...emptyAluminum(),
+      ...item,
+      stockBySize: { ...makeStockMap(aluminumSizes), ...(item.stockBySize || {}) },
+      alertBySize: { ...makeStockMap(aluminumSizes), ...(item.alertBySize || {}) },
+      lastInDateBySize: {
+        ...makeDateMap(aluminumSizes),
+        ...(item.lastInDateBySize || {}),
+      },
+      lastOutDateBySize: {
+        ...makeDateMap(aluminumSizes),
+        ...(item.lastOutDateBySize || {}),
+      },
+      movementDraftBySize: {
+        ...makeMovementMap(aluminumSizes),
+        ...(item.movementDraftBySize || {}),
+      },
+      historyBySize: {
+        ...makeHistoryMap(aluminumSizes),
+        ...(item.historyBySize || {}),
+      },
+    })),
   };
 }
 
@@ -397,25 +375,37 @@ function getDisplayName(tab, item) {
 
 function getCompactRows(tab, item) {
   if (tab === "poster") {
-    const isSquare = item.posterType === "square";
-    const targetSizes = isSquare ? posterSquareSizes : posterRectSizes;
+    const type = item.posterType || "rectFull";
+
+    let targetSizes = posterRectSizes;
+    let labelPrefix = "직";
+
+    if (type === "square") {
+      targetSizes = posterSquareSizes;
+      labelPrefix = "정";
+    } else if (type === "rectShort") {
+      targetSizes = posterRectShortSizes;
+      labelPrefix = "직";
+    }
+
+    const useSquare = type === "square";
 
     return targetSizes.map((size) => ({
-      key: `${isSquare ? "square" : "rect"}-${size}`,
-      label: `${size}`,
+      key: `${useSquare ? "square" : "rect"}-${size}`,
+      label: `${labelPrefix} ${size}`,
       qty: safeNumber(
-        isSquare ? item.squareStock?.[size] : item.rectStock?.[size]
+        useSquare ? item.squareStock?.[size] : item.rectStock?.[size]
       ),
       alertQty: safeNumber(
-        isSquare ? item.squareAlert?.[size] : item.rectAlert?.[size]
+        useSquare ? item.squareAlert?.[size] : item.rectAlert?.[size]
       ),
-      history: isSquare
+      history: useSquare
         ? item.squareHistory?.[size] || []
         : item.rectHistory?.[size] || [],
-      lastIn: isSquare
+      lastIn: useSquare
         ? item.squareLastInDate?.[size] || ""
         : item.rectLastInDate?.[size] || "",
-      lastOut: isSquare
+      lastOut: useSquare
         ? item.squareLastOutDate?.[size] || ""
         : item.rectLastOutDate?.[size] || "",
     }));
@@ -425,7 +415,7 @@ function getCompactRows(tab, item) {
     return [
       ...canvasSquareSizes.map((size) => ({
         key: `square-${size}`,
-        label: `${size}`,
+        label: `정 ${size}`,
         qty: safeNumber(item.squareStock?.[size]),
         alertQty: safeNumber(item.squareAlert?.[size]),
         history: item.squareHistory?.[size] || [],
@@ -434,7 +424,7 @@ function getCompactRows(tab, item) {
       })),
       ...canvasRectSizes.map((size) => ({
         key: `rect-${size}`,
-        label: `${size}`,
+        label: `직 ${size}`,
         qty: safeNumber(item.rectStock?.[size]),
         alertQty: safeNumber(item.rectAlert?.[size]),
         history: item.rectHistory?.[size] || [],
@@ -446,7 +436,7 @@ function getCompactRows(tab, item) {
 
   return aluminumSizes.map((size) => ({
     key: size,
-    label: `${size}`,
+    label: size,
     qty: safeNumber(item.stockBySize?.[size]),
     alertQty: safeNumber(item.alertBySize?.[size]),
     history: item.historyBySize?.[size] || [],
@@ -459,7 +449,6 @@ function normalizeDbItem(row) {
   const base = {
     id: row.id,
     category: row.category,
-    sortCode: row.sort_code || "",
     name: row.name || "",
     color: row.color || "",
     seo: row.seo || "",
@@ -471,23 +460,17 @@ function normalizeDbItem(row) {
     return {
       ...emptyPoster(),
       ...base,
-      posterType: row.stock_data?.posterType || "rect",
+      posterType: row.stock_data?.posterType || "rectFull",
       rectStock: row.stock_data?.rectStock || makeStockMap(posterRectSizes),
       squareStock: row.stock_data?.squareStock || makeStockMap(posterSquareSizes),
       rectAlert: row.alert_data?.rectAlert || makeStockMap(posterRectSizes),
       squareAlert: row.alert_data?.squareAlert || makeStockMap(posterSquareSizes),
-      rectLastInDate:
-        row.last_in_data?.rectLastInDate || makeDateMap(posterRectSizes),
-      squareLastInDate:
-        row.last_in_data?.squareLastInDate || makeDateMap(posterSquareSizes),
-      rectLastOutDate:
-        row.last_out_data?.rectLastOutDate || makeDateMap(posterRectSizes),
-      squareLastOutDate:
-        row.last_out_data?.squareLastOutDate || makeDateMap(posterSquareSizes),
-      rectHistory:
-        row.history_data?.rectHistory || makeHistoryMap(posterRectSizes),
-      squareHistory:
-        row.history_data?.squareHistory || makeHistoryMap(posterSquareSizes),
+      rectLastInDate: row.last_in_data?.rectLastInDate || makeDateMap(posterRectSizes),
+      squareLastInDate: row.last_in_data?.squareLastInDate || makeDateMap(posterSquareSizes),
+      rectLastOutDate: row.last_out_data?.rectLastOutDate || makeDateMap(posterRectSizes),
+      squareLastOutDate: row.last_out_data?.squareLastOutDate || makeDateMap(posterSquareSizes),
+      rectHistory: row.history_data?.rectHistory || makeHistoryMap(posterRectSizes),
+      squareHistory: row.history_data?.squareHistory || makeHistoryMap(posterSquareSizes),
       rectMovementDraft: makeMovementMap(posterRectSizes),
       squareMovementDraft: makeMovementMap(posterSquareSizes),
     };
@@ -501,18 +484,12 @@ function normalizeDbItem(row) {
       rectStock: row.stock_data?.rectStock || makeStockMap(canvasRectSizes),
       squareAlert: row.alert_data?.squareAlert || makeStockMap(canvasSquareSizes),
       rectAlert: row.alert_data?.rectAlert || makeStockMap(canvasRectSizes),
-      squareLastInDate:
-        row.last_in_data?.squareLastInDate || makeDateMap(canvasSquareSizes),
-      rectLastInDate:
-        row.last_in_data?.rectLastInDate || makeDateMap(canvasRectSizes),
-      squareLastOutDate:
-        row.last_out_data?.squareLastOutDate || makeDateMap(canvasSquareSizes),
-      rectLastOutDate:
-        row.last_out_data?.rectLastOutDate || makeDateMap(canvasRectSizes),
-      squareHistory:
-        row.history_data?.squareHistory || makeHistoryMap(canvasSquareSizes),
-      rectHistory:
-        row.history_data?.rectHistory || makeHistoryMap(canvasRectSizes),
+      squareLastInDate: row.last_in_data?.squareLastInDate || makeDateMap(canvasSquareSizes),
+      rectLastInDate: row.last_in_data?.rectLastInDate || makeDateMap(canvasRectSizes),
+      squareLastOutDate: row.last_out_data?.squareLastOutDate || makeDateMap(canvasSquareSizes),
+      rectLastOutDate: row.last_out_data?.rectLastOutDate || makeDateMap(canvasRectSizes),
+      squareHistory: row.history_data?.squareHistory || makeHistoryMap(canvasSquareSizes),
+      rectHistory: row.history_data?.rectHistory || makeHistoryMap(canvasRectSizes),
       squareMovementDraft: makeMovementMap(canvasSquareSizes),
       rectMovementDraft: makeMovementMap(canvasRectSizes),
     };
@@ -533,7 +510,6 @@ function normalizeDbItem(row) {
 function buildPayload(tab, item) {
   const payload = {
     category: tab,
-    sort_code: item.sortCode || null,
     name: tab === "aluminum" ? null : item.name || null,
     color: tab === "aluminum" ? item.color || null : null,
     seo: tab !== "aluminum" ? item.seo || null : null,
@@ -542,7 +518,7 @@ function buildPayload(tab, item) {
 
   if (tab === "poster") {
     payload.stock_data = {
-      posterType: item.posterType || "rect",
+      posterType: item.posterType || "rectFull",
       rectStock: item.rectStock,
       squareStock: item.squareStock,
     };
@@ -671,11 +647,10 @@ function App() {
       ["canvas", data.canvas || []],
       ["aluminum", data.aluminum || []],
     ];
-
     sources.forEach(([category, items]) => {
       items.forEach((item) => {
         getCompactRows(category, item).forEach((row) => {
-          if (row.alertQty > 0 && row.qty <= row.alertQty) {
+          if (row.qty === 0 || row.qty <= row.alertQty) {
             result.push({
               id: `${category}-${item.id}-${row.key}`,
               category,
@@ -689,7 +664,6 @@ function App() {
         });
       });
     });
-
     return result;
   }, [data]);
 
@@ -699,21 +673,17 @@ function App() {
 
     if (keyword && tab !== "aluminum") {
       items = items.filter((item) =>
-        [item.name, item.seo, item.sortCode]
+        [item.name, item.seo]
           .filter(Boolean)
           .some((v) => String(v).toLowerCase().includes(keyword))
       );
     }
 
-    if (showLowStockOnly) {
-      items = items.filter((item) =>
-        getCompactRows(tab, item).some(
-          (row) => row.alertQty > 0 && row.qty <= row.alertQty
-        )
-      );
-    }
+    if (!showLowStockOnly) return items;
 
-    return sortBySortCode(items);
+    return items.filter((item) =>
+      getCompactRows(tab, item).some((row) => row.qty === 0 || row.qty <= row.alertQty)
+    );
   }, [data, query, tab, showLowStockOnly]);
 
   function toggleExpanded(id) {
@@ -776,15 +746,7 @@ function App() {
     }));
   }
 
-  function applyMovement(
-    stockGroup,
-    inDateGroup,
-    outDateGroup,
-    movementGroup,
-    historyGroup,
-    size,
-    mode
-  ) {
+  function applyMovement(stockGroup, inDateGroup, outDateGroup, movementGroup, historyGroup, size, mode) {
     setForm((prev) => {
       const movement = prev[movementGroup]?.[size] || {
         inQty: 0,
@@ -865,13 +827,12 @@ function App() {
           .from("inventory_items")
           .update(payload)
           .eq("id", editingId);
-
         if (error) throw error;
 
         setData((prev) => {
           const list = prev[tab] || [];
-          const nextList = sortBySortCode(
-            list.map((item) => (item.id === editingId ? updated : item))
+          const nextList = list.map((item) =>
+            item.id === editingId ? updated : item
           );
           return { ...prev, [tab]: nextList };
         });
@@ -881,14 +842,10 @@ function App() {
           .insert(payload)
           .select()
           .single();
-
         if (error) throw error;
 
         const normalized = normalizeDbItem(inserted);
-        setData((prev) => ({
-          ...prev,
-          [tab]: sortBySortCode([normalized, ...(prev[tab] || [])]),
-        }));
+        setData((prev) => ({ ...prev, [tab]: [normalized, ...(prev[tab] || [])] }));
       }
 
       closeModal();
@@ -906,13 +863,8 @@ function App() {
 
     try {
       setErrorMessage("");
-      const { error } = await supabase
-        .from("inventory_items")
-        .delete()
-        .eq("id", id);
-
+      const { error } = await supabase.from("inventory_items").delete().eq("id", id);
       if (error) throw error;
-
       setData((prev) => ({
         ...prev,
         [tab]: (prev[tab] || []).filter((item) => item.id !== id),
@@ -934,7 +886,6 @@ function App() {
         .from("inventory_items")
         .delete()
         .neq("category", "");
-
       if (deleteError) throw deleteError;
 
       const demoRows = [
@@ -981,10 +932,10 @@ function App() {
             <div>
               <h1 className="text-2xl font-bold tracking-tight">재고 관리 앱</h1>
               <p className="mt-2 text-sm text-slate-600">
-                목록은 정렬코드 기준으로 정렬되고, 검색은 품명/SEO/정렬코드까지 지원합니다.
+                목록은 한 줄 요약으로 보고, 클릭하면 상세가 열리도록 바꾼 버전입니다.
+                사이즈별 재고 알림 기준과 부족 품목 모아보기를 지원합니다.
               </p>
             </div>
-
             <div className="flex flex-wrap gap-2">
               <button
                 onClick={openCreateModal}
@@ -992,14 +943,12 @@ function App() {
               >
                 <Plus size={18} /> 항목 추가
               </button>
-
               <button
                 onClick={exportJson}
                 className="inline-flex items-center gap-2 rounded-2xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium"
               >
                 <Save size={18} /> JSON 저장
               </button>
-
               <button
                 onClick={resetDemo}
                 className="inline-flex items-center gap-2 rounded-2xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium"
@@ -1008,7 +957,6 @@ function App() {
               </button>
             </div>
           </div>
-
           {loading && <div className="mt-3 text-sm text-slate-500">데이터 불러오는 중...</div>}
           {errorMessage && <div className="mt-3 text-sm text-red-600">{errorMessage}</div>}
         </header>
@@ -1021,7 +969,6 @@ function App() {
             <div className="flex items-center gap-2 text-sm font-semibold text-amber-800">
               <AlertTriangle size={18} /> 전체 재고 부족 상품 / 사이즈 ({lowStockItems.length})
             </div>
-
             <div className="inline-flex items-center gap-1 rounded-2xl bg-white px-3 py-1.5 text-xs font-medium text-amber-800 ring-1 ring-amber-200">
               <ChevronsUpDown size={14} /> {showAllLowStock ? "접기" : "전체 보기"}
             </div>
@@ -1059,15 +1006,12 @@ function App() {
             <TabButton active={tab === "poster"} onClick={() => setTab("poster")}>
               아트포스터 재고 ({counts.poster})
             </TabButton>
-
             <TabButton active={tab === "canvas"} onClick={() => setTab("canvas")}>
               캔버스액자 재고 ({counts.canvas})
             </TabButton>
-
             <TabButton active={tab === "aluminum"} onClick={() => setTab("aluminum")}>
               알루미늄 액자 재고 ({counts.aluminum})
             </TabButton>
-
             <button
               onClick={() => setShowLowStockOnly((v) => !v)}
               className={`rounded-2xl px-4 py-2.5 text-sm font-medium ${
@@ -1087,22 +1031,13 @@ function App() {
               <input
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="품명, SEO 또는 코드로 검색"
+                placeholder="품명 또는 SEO로 검색"
                 className="w-full rounded-2xl border border-slate-300 bg-slate-50 py-2.5 pl-10 pr-4 outline-none transition focus:border-slate-500"
               />
             </div>
           ) : (
-            <div className="relative w-full lg:max-w-sm">
-              <Search
-                className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
-                size={18}
-              />
-              <input
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="코드로 검색"
-                className="w-full rounded-2xl border border-slate-300 bg-slate-50 py-2.5 pl-10 pr-4 outline-none transition focus:border-slate-500"
-              />
+            <div className="w-full lg:max-w-sm rounded-2xl bg-slate-50 px-4 py-2.5 text-sm text-slate-500 ring-1 ring-slate-200">
+              알루미늄 액자는 검색 기능을 사용하지 않습니다.
             </div>
           )}
         </section>
@@ -1117,7 +1052,7 @@ function App() {
               const rows = getCompactRows(tab, item);
               const expanded = !!expandedIds[item.id];
               const lowCount = rows.filter(
-                (row) => row.alertQty > 0 && row.qty <= row.alertQty
+                (row) => row.qty === 0 || row.qty <= row.alertQty
               ).length;
 
               return (
@@ -1134,7 +1069,6 @@ function App() {
                       <div className="flex items-center gap-2">
                         {expanded ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
                         <div className="truncate text-base font-semibold text-slate-900">
-                          {item.sortCode ? `[${item.sortCode}] ` : ""}
                           {getDisplayName(tab, item)}
                         </div>
                         {lowCount > 0 && (
@@ -1143,16 +1077,16 @@ function App() {
                           </span>
                         )}
                       </div>
-
-                      <div className="mt-1 pl-7 text-sm text-slate-500">
-                        {item.sortCode ? `코드: ${item.sortCode}` : "코드 없음"}
-                        {tab !== "aluminum" ? ` · SEO: ${item.seo || "-"}` : ""}
-                      </div>
+                      {tab !== "aluminum" && (
+                        <div className="mt-1 pl-7 text-sm text-slate-500">
+                          SEO: {item.seo || "-"}
+                        </div>
+                      )}
                     </div>
 
                     <div className="flex flex-wrap gap-2 md:justify-end">
                       {rows
-                        .filter((row) => row.alertQty > 0 && row.qty <= row.alertQty)
+                        .filter((row) => row.qty === 0 || row.qty <= row.alertQty)
                         .map((row) => (
                           <div
                             key={`low-${row.key}`}
@@ -1163,7 +1097,7 @@ function App() {
                         ))}
 
                       {rows
-                        .filter((row) => !(row.alertQty > 0 && row.qty <= row.alertQty))
+                        .filter((row) => !(row.qty === 0 || row.qty <= row.alertQty))
                         .map((row) => (
                           <div
                             key={`normal-${row.key}`}
@@ -1188,14 +1122,12 @@ function App() {
                             <ExternalLink size={15} /> 관련 사이트 열기
                           </a>
                         )}
-
                         <button
                           onClick={() => openEditModal(item)}
                           className="inline-flex items-center gap-2 rounded-2xl border border-slate-300 px-3 py-2 text-sm font-medium"
                         >
                           <Edit3 size={16} /> 수정
                         </button>
-
                         <button
                           onClick={() => deleteItem(item.id)}
                           className="inline-flex items-center gap-2 rounded-2xl border border-red-200 px-3 py-2 text-sm font-medium text-red-600"
@@ -1209,6 +1141,11 @@ function App() {
                           {item.posterType === "square" ? (
                             <DetailSection
                               title="정사각형 포스터 (4040 / 6060)"
+                              rows={rows}
+                            />
+                          ) : item.posterType === "rectShort" ? (
+                            <DetailSection
+                              title="직사각형 포스터 (3040 / 4060 / 5070)"
                               rows={rows}
                             />
                           ) : (
@@ -1254,39 +1191,10 @@ function App() {
           <div className="max-h-[92vh] w-full overflow-y-auto rounded-t-3xl bg-white p-5 shadow-2xl sm:max-w-5xl sm:rounded-3xl">
             <div className="mb-4 flex items-center justify-between">
               <h3 className="text-xl font-bold">{editingId ? "항목 수정" : "항목 추가"}</h3>
-              <button
-                onClick={closeModal}
-                className="rounded-full p-2 text-slate-500 hover:bg-slate-100"
-              >
+              <button onClick={closeModal} className="rounded-full p-2 text-slate-500 hover:bg-slate-100">
                 <X size={20} />
               </button>
             </div>
-
-            {(tab === "poster" || tab === "canvas") && (
-              <Field label="정렬코드">
-                <input
-                  value={form.sortCode || ""}
-                  onChange={(e) =>
-                    setForm({ ...form, sortCode: e.target.value.toUpperCase() })
-                  }
-                  className={inputClass}
-                  placeholder={tab === "poster" ? "예: J001" : "예: C001"}
-                />
-              </Field>
-            )}
-
-            {tab === "aluminum" && (
-              <Field label="정렬코드">
-                <input
-                  value={form.sortCode || ""}
-                  onChange={(e) =>
-                    setForm({ ...form, sortCode: e.target.value.toUpperCase() })
-                  }
-                  className={inputClass}
-                  placeholder="예: M001"
-                />
-              </Field>
-            )}
 
             {tab === "poster" && (
               <div className="space-y-4">
@@ -1297,7 +1205,6 @@ function App() {
                     className={inputClass}
                   />
                 </Field>
-
                 <Field label="품명">
                   <input
                     value={form.name || ""}
@@ -1305,7 +1212,6 @@ function App() {
                     className={inputClass}
                   />
                 </Field>
-
                 <Field label="관련 사이트">
                   <input
                     value={form.site || ""}
@@ -1314,56 +1220,19 @@ function App() {
                     placeholder="https://..."
                   />
                 </Field>
-
                 <Field label="포스터 형태 선택">
                   <select
-                    value={form.posterType || "rect"}
+                    value={form.posterType || "rectFull"}
                     onChange={(e) => setForm({ ...form, posterType: e.target.value })}
                     className={inputClass}
                   >
-                    <option value="rect">직사각형 타입 (3040 / 4060 / 5070 / 6080)</option>
                     <option value="square">정사각형 타입 (4040 / 6060)</option>
+                    <option value="rectFull">직사각형 타입 (3040 / 4060 / 5070 / 6080)</option>
+                    <option value="rectShort">직사각형 타입 (3040 / 4060 / 5070)</option>
                   </select>
                 </Field>
 
-                {form.posterType === "rect" ? (
-                  <SizeEditor
-                    title="직사각형 포스터 사이즈별 관리"
-                    sizes={posterRectSizes}
-                    values={form.rectStock}
-                    alertValues={form.rectAlert}
-                    inDateValues={form.rectLastInDate}
-                    outDateValues={form.rectLastOutDate}
-                    movementValues={form.rectMovementDraft}
-                    onChange={(size, value) => updateNested("rectStock", size, value)}
-                    onAlertChange={(size, value) => updateNested("rectAlert", size, value)}
-                    onMovementChange={(size, field, value) =>
-                      updateMovement("rectMovementDraft", size, field, value)
-                    }
-                    onApplyIn={(size) =>
-                      applyMovement(
-                        "rectStock",
-                        "rectLastInDate",
-                        "rectLastOutDate",
-                        "rectMovementDraft",
-                        "rectHistory",
-                        size,
-                        "in"
-                      )
-                    }
-                    onApplyOut={(size) =>
-                      applyMovement(
-                        "rectStock",
-                        "rectLastInDate",
-                        "rectLastOutDate",
-                        "rectMovementDraft",
-                        "rectHistory",
-                        size,
-                        "out"
-                      )
-                    }
-                  />
-                ) : (
+                {form.posterType === "square" ? (
                   <SizeEditor
                     title="정사각형 포스터 사이즈별 관리"
                     sizes={posterSquareSizes}
@@ -1400,6 +1269,51 @@ function App() {
                       )
                     }
                   />
+                ) : (
+                  <SizeEditor
+                    title={
+                      form.posterType === "rectShort"
+                        ? "직사각형 포스터 사이즈별 관리 (3040 / 4060 / 5070)"
+                        : "직사각형 포스터 사이즈별 관리 (3040 / 4060 / 5070 / 6080)"
+                    }
+                    sizes={
+                      form.posterType === "rectShort"
+                        ? posterRectShortSizes
+                        : posterRectSizes
+                    }
+                    values={form.rectStock}
+                    alertValues={form.rectAlert}
+                    inDateValues={form.rectLastInDate}
+                    outDateValues={form.rectLastOutDate}
+                    movementValues={form.rectMovementDraft}
+                    onChange={(size, value) => updateNested("rectStock", size, value)}
+                    onAlertChange={(size, value) => updateNested("rectAlert", size, value)}
+                    onMovementChange={(size, field, value) =>
+                      updateMovement("rectMovementDraft", size, field, value)
+                    }
+                    onApplyIn={(size) =>
+                      applyMovement(
+                        "rectStock",
+                        "rectLastInDate",
+                        "rectLastOutDate",
+                        "rectMovementDraft",
+                        "rectHistory",
+                        size,
+                        "in"
+                      )
+                    }
+                    onApplyOut={(size) =>
+                      applyMovement(
+                        "rectStock",
+                        "rectLastInDate",
+                        "rectLastOutDate",
+                        "rectMovementDraft",
+                        "rectHistory",
+                        size,
+                        "out"
+                      )
+                    }
+                  />
                 )}
               </div>
             )}
@@ -1413,7 +1327,6 @@ function App() {
                     className={inputClass}
                   />
                 </Field>
-
                 <Field label="품명">
                   <input
                     value={form.name || ""}
@@ -1421,7 +1334,6 @@ function App() {
                     className={inputClass}
                   />
                 </Field>
-
                 <Field label="관련 사이트">
                   <input
                     value={form.site || ""}
@@ -1430,7 +1342,6 @@ function App() {
                     placeholder="https://..."
                   />
                 </Field>
-
                 <SizeEditor
                   title="정사각형 형태 관리"
                   sizes={canvasSquareSizes}
@@ -1467,7 +1378,6 @@ function App() {
                     )
                   }
                 />
-
                 <SizeEditor
                   title="직사각형 형태 관리"
                   sizes={canvasRectSizes}
@@ -1522,7 +1432,6 @@ function App() {
                     ))}
                   </select>
                 </Field>
-
                 <SizeEditor
                   title="알루미늄 액자 사이즈별 관리"
                   sizes={aluminumSizes}
@@ -1569,7 +1478,6 @@ function App() {
               >
                 취소
               </button>
-
               <button
                 onClick={saveItem}
                 disabled={saving}
@@ -1591,8 +1499,7 @@ function DetailSection({ title, rows }) {
       <div className="mb-2 text-sm font-semibold text-slate-800">{title}</div>
       <div className="space-y-3">
         {rows.map((row) => {
-          const isLow = row.alertQty > 0 && row.qty <= row.alertQty;
-
+          const isLow = row.qty === 0 || row.qty <= row.alertQty;
           return (
             <div
               key={row.key}
@@ -1608,14 +1515,12 @@ function DetailSection({ title, rows }) {
                   </span>
                 )}
               </div>
-
               <div className="mt-2 grid grid-cols-2 gap-2 text-sm md:grid-cols-4">
                 <InfoBox label="현재 재고" value={row.qty} />
                 <InfoBox label="알림 기준" value={row.alertQty} />
                 <InfoBox label="최근 입고일" value={formatDate(row.lastIn)} />
                 <InfoBox label="최근 출고일" value={formatDate(row.lastOut)} />
               </div>
-
               <div className="mt-3 rounded-2xl bg-white p-3 ring-1 ring-slate-200">
                 <div className="mb-2 text-xs font-semibold text-slate-700">입출고 기록</div>
                 {row.history.length === 0 ? (
@@ -1659,9 +1564,7 @@ function TabButton({ active, children, onClick }) {
     <button
       onClick={onClick}
       className={`rounded-2xl px-4 py-2.5 text-sm font-medium transition ${
-        active
-          ? "bg-slate-900 text-white"
-          : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+        active ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-700 hover:bg-slate-200"
       }`}
     >
       {children}
@@ -1699,7 +1602,6 @@ function SizeEditor({
         {sizes.map((size) => (
           <div key={size} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
             <div className="mb-3 text-base font-semibold text-slate-700">사이즈 {size}</div>
-
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <div className="mb-1 text-xs text-slate-500">현재 재고</div>
@@ -1711,7 +1613,6 @@ function SizeEditor({
                   className={inputClass}
                 />
               </div>
-
               <div>
                 <div className="mb-1 text-xs text-slate-500">재고 알림 기준</div>
                 <input
@@ -1723,7 +1624,6 @@ function SizeEditor({
                 />
               </div>
             </div>
-
             <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
               <div className="rounded-2xl bg-white p-3 ring-1 ring-slate-200">
                 <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-slate-700">
@@ -1755,7 +1655,6 @@ function SizeEditor({
                   최근 입고일: {formatDate(inDateValues?.[size])}
                 </div>
               </div>
-
               <div className="rounded-2xl bg-white p-3 ring-1 ring-slate-200">
                 <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-slate-700">
                   <ArrowUpFromLine size={16} /> 출고 입력
