@@ -378,21 +378,18 @@ function getCompactRows(tab, item) {
     const type = item.posterType || "rectFull";
 
     let targetSizes = posterRectSizes;
-    let labelPrefix = "직";
 
     if (type === "square") {
       targetSizes = posterSquareSizes;
-      labelPrefix = "정";
     } else if (type === "rectShort") {
       targetSizes = posterRectShortSizes;
-      labelPrefix = "직";
     }
 
     const useSquare = type === "square";
 
     return targetSizes.map((size) => ({
       key: `${useSquare ? "square" : "rect"}-${size}`,
-      label: `${labelPrefix} ${size}`,
+      label: `${size}`,
       qty: safeNumber(
         useSquare ? item.squareStock?.[size] : item.rectStock?.[size]
       ),
@@ -415,7 +412,7 @@ function getCompactRows(tab, item) {
     return [
       ...canvasSquareSizes.map((size) => ({
         key: `square-${size}`,
-        label: `정 ${size}`,
+        label: `${size}`,
         qty: safeNumber(item.squareStock?.[size]),
         alertQty: safeNumber(item.squareAlert?.[size]),
         history: item.squareHistory?.[size] || [],
@@ -424,7 +421,7 @@ function getCompactRows(tab, item) {
       })),
       ...canvasRectSizes.map((size) => ({
         key: `rect-${size}`,
-        label: `직 ${size}`,
+        label: `${size}`,
         qty: safeNumber(item.rectStock?.[size]),
         alertQty: safeNumber(item.rectAlert?.[size]),
         history: item.rectHistory?.[size] || [],
