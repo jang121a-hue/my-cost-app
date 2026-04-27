@@ -226,32 +226,45 @@ function getDisplayName(tab, item) {
 
 function getCompactRows(tab, item) {
   if (tab === "poster") {
-    return [
-      ...posterRectSizes.map((size) => ({
-        key: `rect-${size}`,
-        label: `${size}`,
-        qty: safeNumber(item.rectStock?.[size]),
-        alertQty: safeNumber(item.rectAlert?.[size]),
-        history: item.rectHistory?.[size] || [],
-        lastIn: item.rectLastInDate?.[size] || "",
-        lastOut: item.rectLastOutDate?.[size] || "",
-      })),
-      ...posterSquareSizes.map((size) => ({
-        key: `square-${size}`,
-        label: `${size}`,
-        qty: safeNumber(item.squareStock?.[size]),
-        alertQty: safeNumber(item.squareAlert?.[size]),
-        history: item.squareHistory?.[size] || [],
-        lastIn: item.squareLastInDate?.[size] || "",
-        lastOut: item.squareLastOutDate?.[size] || "",
-      })),
-    ];
+    const type = item.posterType || "rectFull";
+
+    let targetSizes = posterRectSizes;
+    if (type === "square") {
+      targetSizes = posterSquareSizes;
+    } else if (type === "rectShort") {
+      targetSizes = posterRectShortSizes;
+    } else {
+      targetSizes = posterRectSizes;
+    }
+
+    const useSquare = type === "square";
+
+    return targetSizes.map((size) => ({
+      key: `${type}-${size}`,
+      label: `${size}`,
+      qty: safeNumber(
+        useSquare ? item.squareStock?.[size] : item.rectStock?.[size]
+      ),
+      alertQty: safeNumber(
+        useSquare ? item.squareAlert?.[size] : item.rectAlert?.[size]
+      ),
+      history: useSquare
+        ? item.squareHistory?.[size] || []
+        : item.rectHistory?.[size] || [],
+      lastIn: useSquare
+        ? item.squareLastInDate?.[size] || ""
+        : item.rectLastInDate?.[size] || "",
+      lastOut: useSquare
+        ? item.squareLastOutDate?.[size] || ""
+        : item.rectLastOutDate?.[size] || "",
+    }));
   }
+
   if (tab === "canvas") {
     return [
       ...canvasSquareSizes.map((size) => ({
         key: `square-${size}`,
-        label: `정 ${size}`,
+        label: `${size}`,
         qty: safeNumber(item.squareStock?.[size]),
         alertQty: safeNumber(item.squareAlert?.[size]),
         history: item.squareHistory?.[size] || [],
@@ -260,7 +273,7 @@ function getCompactRows(tab, item) {
       })),
       ...canvasRectSizes.map((size) => ({
         key: `rect-${size}`,
-        label: `직 ${size}`,
+        label: `${size}`,
         qty: safeNumber(item.rectStock?.[size]),
         alertQty: safeNumber(item.rectAlert?.[size]),
         history: item.rectHistory?.[size] || [],
@@ -269,9 +282,10 @@ function getCompactRows(tab, item) {
       })),
     ];
   }
+
   return aluminumSizes.map((size) => ({
     key: size,
-    label: size,
+    label: `${size}`,
     qty: safeNumber(item.stockBySize?.[size]),
     alertQty: safeNumber(item.alertBySize?.[size]),
     history: item.historyBySize?.[size] || [],
