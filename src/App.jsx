@@ -14,6 +14,7 @@ import {
   ChevronRight,
   AlertTriangle,
   ChevronsUpDown,
+  ShoppingCart,
 } from "lucide-react";
 import { supabase } from "./lib/supabase";
 
@@ -51,12 +52,18 @@ function makeHistoryMap(sizes) {
   return Object.fromEntries(sizes.map((s) => [s, []]));
 }
 
+// 알루미늄 색상별 입고사이트 빈 맵
+function makePurchaseSiteByColorMap() {
+  return Object.fromEntries(aluminumColors.map((c) => [c, ""]));
+}
+
 const emptyPoster = () => ({
   id: crypto.randomUUID(),
   category: "poster",
   seo: "",
   name: "",
   site: "",
+  purchaseSite: "",
   posterType: "rectFull",
   rectStock: makeStockMap(posterRectSizes),
   rectAlert: makeStockMap(posterRectSizes),
@@ -79,6 +86,7 @@ const emptyCanvas = () => ({
   seo: "",
   name: "",
   site: "",
+  purchaseSite: "",
   squareStock: makeStockMap(canvasSquareSizes),
   squareAlert: makeStockMap(canvasSquareSizes),
   squareLastInDate: makeDateMap(canvasSquareSizes),
@@ -98,6 +106,7 @@ const emptyAluminum = () => ({
   id: crypto.randomUUID(),
   category: "aluminum",
   color: aluminumColors[0],
+  purchaseSiteByColor: makePurchaseSiteByColorMap(),
   stockBySize: makeStockMap(aluminumSizes),
   alertBySize: makeStockMap(aluminumSizes),
   lastInDateBySize: makeDateMap(aluminumSizes),
@@ -114,6 +123,7 @@ const demoData = {
       seo: "북유럽 감성 포스터",
       name: "라인드로잉 플라워",
       site: "https://example.com/poster-1",
+      purchaseSite: "https://supplier.example.com/poster-1",
       posterType: "rectFull",
       rectStock: { "3040": 12, "4060": 7, "5070": 4, "6080": 2 },
       rectAlert: { "3040": 5, "4060": 3, "5070": 2, "6080": 3 },
@@ -164,6 +174,7 @@ const demoData = {
       seo: "모던 캔버스액자",
       name: "선셋 오렌지",
       site: "https://example.com/canvas-1",
+      purchaseSite: "https://supplier.example.com/canvas-1",
       squareStock: { "4040": 5, "6060": 3, "7070": 1 },
       squareAlert: { "4040": 2, "6060": 2, "7070": 1 },
       squareLastInDate: {
@@ -194,6 +205,10 @@ const demoData = {
     {
       ...emptyAluminum(),
       color: "무광 검정",
+      purchaseSiteByColor: {
+        ...makePurchaseSiteByColorMap(),
+        "무광 검정": "https://supplier.example.com/alum-matteblack",
+      },
       stockBySize: {
         "3040": 20,
         "4060": 15,
@@ -247,12 +262,24 @@ function safeNumber(value) {
   return Number.isFinite(n) && n >= 0 ? n : 0;
 }
 
+// 항목에서 입고 사이트 URL을 꺼내는 헬퍼
+// - poster/canvas: item.purchaseSite
+// - aluminum: item.purchaseSiteByColor[item.color]
+function getPurchaseSite(tab, item) {
+  if (!item) return "";
+  if (tab === "aluminum") {
+    return item.purchaseSiteByColor?.[item.color] || "";
+  }
+  return item.purchaseSite || "";
+}
+
 function hydrateData(raw) {
   const base = raw || demoData;
   return {
     poster: (base.poster || []).map((item) => ({
       ...emptyPoster(),
       ...item,
+      purchaseSite: item.purchaseSite || "",
       rectStock: { ...makeStockMap(posterRectSizes), ...(item.rectStock || {}) },
       rectAlert: { ...makeStockMap(posterRectSizes), ...(item.rectAlert || {}) },
       rectLastInDate: {
@@ -299,6 +326,7 @@ function hydrateData(raw) {
     canvas: (base.canvas || []).map((item) => ({
       ...emptyCanvas(),
       ...item,
+      purchaseSite: item.purchaseSite || "",
       squareStock: {
         ...makeStockMap(canvasSquareSizes),
         ...(item.squareStock || {}),
@@ -345,6 +373,10 @@ function hydrateData(raw) {
     aluminum: (base.aluminum || []).map((item) => ({
       ...emptyAluminum(),
       ...item,
+      purchaseSiteByColor: {
+        ...makePurchaseSiteByColorMap(),
+        ...(item.purchaseSiteByColor || {}),
+      },
       stockBySize: { ...makeStockMap(aluminumSizes), ...(item.stockBySize || {}) },
       alertBySize: { ...makeStockMap(aluminumSizes), ...(item.alertBySize || {}) },
       lastInDateBySize: {
@@ -457,6 +489,8 @@ function normalizeDbItem(row) {
     return {
       ...emptyPoster(),
       ...base,
+      // 입고 사이트는 stock_data에 같이 저장 (DB 스키마 변경 없이)
+      purchaseSite: row.stock_data?.purchaseSite || "",
       posterType: row.stock_data?.posterType || "rectFull",
       rectStock: row.stock_data?.rectStock || makeStockMap(posterRectSizes),
       squareStock: row.stock_data?.squareStock || makeStockMap(posterSquareSizes),
@@ -477,6 +511,7 @@ function normalizeDbItem(row) {
     return {
       ...emptyCanvas(),
       ...base,
+      purchaseSite: row.stock_data?.purchaseSite || "",
       squareStock: row.stock_data?.squareStock || makeStockMap(canvasSquareSizes),
       rectStock: row.stock_data?.rectStock || makeStockMap(canvasRectSizes),
       squareAlert: row.alert_data?.squareAlert || makeStockMap(canvasSquareSizes),
@@ -492,10 +527,24 @@ function normalizeDbItem(row) {
     };
   }
 
+  // aluminum: stock_data가 사이즈맵 또는 { sizes, purchaseSiteByColor } 두 가지 형태 모두 지원
+  const aluminumStock = row.stock_data || {};
+  const isWrapped =
+    aluminumStock &&
+    typeof aluminumStock === "object" &&
+    (aluminumStock.sizes || aluminumStock.purchaseSiteByColor);
+
   return {
     ...emptyAluminum(),
     ...base,
-    stockBySize: row.stock_data || makeStockMap(aluminumSizes),
+    purchaseSiteByColor: {
+      ...makePurchaseSiteByColorMap(),
+      ...(isWrapped ? aluminumStock.purchaseSiteByColor || {} : {}),
+    },
+    stockBySize: {
+      ...makeStockMap(aluminumSizes),
+      ...(isWrapped ? aluminumStock.sizes || {} : aluminumStock),
+    },
     alertBySize: row.alert_data || makeStockMap(aluminumSizes),
     lastInDateBySize: row.last_in_data || makeDateMap(aluminumSizes),
     lastOutDateBySize: row.last_out_data || makeDateMap(aluminumSizes),
@@ -515,6 +564,7 @@ function buildPayload(tab, item) {
 
   if (tab === "poster") {
     payload.stock_data = {
+      purchaseSite: item.purchaseSite || "",
       posterType: item.posterType || "rectFull",
       rectStock: item.rectStock,
       squareStock: item.squareStock,
@@ -539,6 +589,7 @@ function buildPayload(tab, item) {
 
   if (tab === "canvas") {
     payload.stock_data = {
+      purchaseSite: item.purchaseSite || "",
       squareStock: item.squareStock,
       rectStock: item.rectStock,
     };
@@ -561,7 +612,11 @@ function buildPayload(tab, item) {
   }
 
   if (tab === "aluminum") {
-    payload.stock_data = item.stockBySize;
+    // 알루미늄은 사이즈맵을 sizes 키로 감싸고 purchaseSiteByColor를 추가
+    payload.stock_data = {
+      sizes: item.stockBySize,
+      purchaseSiteByColor: item.purchaseSiteByColor || makePurchaseSiteByColorMap(),
+    };
     payload.alert_data = item.alertBySize;
     payload.last_in_data = item.lastInDateBySize;
     payload.last_out_data = item.lastOutDateBySize;
@@ -656,6 +711,7 @@ function App() {
               sizeLabel: row.label,
               qty: row.qty,
               alertQty: row.alertQty,
+              purchaseSite: getPurchaseSite(category, item),
             });
           }
         });
@@ -930,7 +986,7 @@ function App() {
               <h1 className="text-2xl font-bold tracking-tight">재고 관리 앱</h1>
               <p className="mt-2 text-sm text-slate-600">
                 목록은 한 줄 요약으로 보고, 클릭하면 상세가 열리도록 바꾼 버전입니다.
-                사이즈별 재고 알림 기준과 부족 품목 모아보기를 지원합니다.
+                사이즈별 재고 알림 기준과 부족 품목 모아보기, 입고 사이트 바로가기를 지원합니다.
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -982,17 +1038,36 @@ function App() {
           ) : (
             <div className="mt-3 grid grid-cols-1 gap-2 md:grid-cols-2 xl:grid-cols-3">
               {lowStockItems.map((entry) => (
-                <button
+                <div
                   key={entry.id}
-                  onClick={() => openLowStockTarget(entry)}
-                  className="rounded-2xl border border-amber-200 bg-white px-3 py-2 text-left text-sm hover:bg-amber-50"
+                  className="rounded-2xl border border-amber-200 bg-white p-3 text-left text-sm hover:bg-amber-50"
                 >
-                  <div className="font-medium text-slate-800">{entry.title}</div>
-                  <div className="mt-1 text-slate-600">사이즈: {entry.sizeLabel}</div>
-                  <div className="text-red-600">
-                    현재 {entry.qty} / 알림기준 {entry.alertQty}
-                  </div>
-                </button>
+                  <button
+                    onClick={() => openLowStockTarget(entry)}
+                    className="block w-full text-left"
+                  >
+                    <div className="font-medium text-slate-800">{entry.title}</div>
+                    <div className="mt-1 text-slate-600">사이즈: {entry.sizeLabel}</div>
+                    <div className="text-red-600">
+                      현재 {entry.qty} / 알림기준 {entry.alertQty}
+                    </div>
+                  </button>
+                  {entry.purchaseSite ? (
+                    <a
+                      href={entry.purchaseSite}
+                      target="_blank"
+                      rel="noreferrer"
+                      onClick={(e) => e.stopPropagation()}
+                      className="mt-2 inline-flex w-full items-center justify-center gap-1.5 rounded-xl bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-700"
+                    >
+                      <ShoppingCart size={14} /> 입고 사이트 열기
+                    </a>
+                  ) : (
+                    <div className="mt-2 rounded-xl bg-slate-100 px-3 py-2 text-center text-xs text-slate-500">
+                      입고 사이트 미등록
+                    </div>
+                  )}
+                </div>
               ))}
             </div>
           )}
@@ -1051,6 +1126,7 @@ function App() {
               const lowCount = rows.filter(
                 (row) => row.qty === 0 || row.qty <= row.alertQty
               ).length;
+              const purchaseUrl = getPurchaseSite(tab, item);
 
               return (
                 <div
@@ -1117,6 +1193,20 @@ function App() {
                             className="inline-flex items-center gap-1 rounded-2xl border border-slate-300 px-3 py-2 text-sm font-medium text-blue-600"
                           >
                             <ExternalLink size={15} /> 관련 사이트 열기
+                          </a>
+                        )}
+                        {purchaseUrl && (
+                          <a
+                            href={purchaseUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className={`inline-flex items-center gap-1 rounded-2xl px-3 py-2 text-sm font-semibold text-white ${
+                              lowCount > 0
+                                ? "bg-emerald-600 hover:bg-emerald-700 ring-2 ring-emerald-300"
+                                : "bg-emerald-600 hover:bg-emerald-700"
+                            }`}
+                          >
+                            <ShoppingCart size={15} /> 입고 사이트 열기
                           </a>
                         )}
                         <button
@@ -1209,12 +1299,20 @@ function App() {
                     className={inputClass}
                   />
                 </Field>
-                <Field label="관련 사이트">
+                <Field label="관련 사이트 (판매 페이지)">
                   <input
                     value={form.site || ""}
                     onChange={(e) => setForm({ ...form, site: e.target.value })}
                     className={inputClass}
                     placeholder="https://..."
+                  />
+                </Field>
+                <Field label="🛒 입고 사이트 (재입고 시 주문할 곳)">
+                  <input
+                    value={form.purchaseSite || ""}
+                    onChange={(e) => setForm({ ...form, purchaseSite: e.target.value })}
+                    className={inputClass}
+                    placeholder="https://supplier..."
                   />
                 </Field>
                 <Field label="포스터 형태 선택">
@@ -1331,12 +1429,20 @@ function App() {
                     className={inputClass}
                   />
                 </Field>
-                <Field label="관련 사이트">
+                <Field label="관련 사이트 (판매 페이지)">
                   <input
                     value={form.site || ""}
                     onChange={(e) => setForm({ ...form, site: e.target.value })}
                     className={inputClass}
                     placeholder="https://..."
+                  />
+                </Field>
+                <Field label="🛒 입고 사이트 (재입고 시 주문할 곳)">
+                  <input
+                    value={form.purchaseSite || ""}
+                    onChange={(e) => setForm({ ...form, purchaseSite: e.target.value })}
+                    className={inputClass}
+                    placeholder="https://supplier..."
                   />
                 </Field>
                 <SizeEditor
@@ -1428,6 +1534,25 @@ function App() {
                       </option>
                     ))}
                   </select>
+                </Field>
+                <Field label={`🛒 입고 사이트 - ${form.color || ""} 색상`}>
+                  <input
+                    value={form.purchaseSiteByColor?.[form.color] || ""}
+                    onChange={(e) =>
+                      setForm({
+                        ...form,
+                        purchaseSiteByColor: {
+                          ...(form.purchaseSiteByColor || {}),
+                          [form.color]: e.target.value,
+                        },
+                      })
+                    }
+                    className={inputClass}
+                    placeholder="https://supplier..."
+                  />
+                  <p className="mt-1 text-xs text-slate-500">
+                    색상마다 입고처가 다른 경우, 색상을 바꾸고 각각 입력하세요.
+                  </p>
                 </Field>
                 <SizeEditor
                   title="알루미늄 액자 사이즈별 관리"
