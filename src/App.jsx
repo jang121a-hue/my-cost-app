@@ -22,6 +22,7 @@ const posterRectSizes = ["3040", "4060", "5070", "6080"];
 const posterRectShortSizes = ["3040", "4060", "5070"];
 const posterSquareSizes = ["4040", "6060"];
 const canvasSquareSizes = ["4040", "6060", "7070"];
+const canvasSquareShortSizes = ["4040", "6060"];
 const canvasRectSizes = ["3040", "4060", "5070"];
 const aluminumSizes = ["3040", "4060", "5070", "6080", "4040", "6060"];
 const aluminumColors = [
@@ -87,7 +88,7 @@ const emptyCanvas = () => ({
   name: "",
   site: "",
   purchaseSite: "",
-  canvasType: "square",
+  canvasType: "squareFull",
   squareStock: makeStockMap(canvasSquareSizes),
   squareAlert: makeStockMap(canvasSquareSizes),
   squareLastInDate: makeDateMap(canvasSquareSizes),
@@ -176,7 +177,7 @@ const demoData = {
       name: "선셋 오렌지",
       site: "https://example.com/canvas-1",
       purchaseSite: "https://supplier.example.com/canvas-1",
-      canvasType: "square",
+      canvasType: "squareFull",
       squareStock: { "4040": 5, "6060": 3, "7070": 1 },
       squareAlert: { "4040": 2, "6060": 2, "7070": 1 },
       squareLastInDate: {
@@ -275,6 +276,13 @@ function getPurchaseSite(tab, item) {
   return item.purchaseSite || "";
 }
 
+// 캔버스 타입을 정규화 (옛날 "square" → "squareFull")
+function normalizeCanvasType(type) {
+  if (type === "square") return "squareFull";
+  if (type === "squareFull" || type === "squareShort" || type === "rect") return type;
+  return "squareFull";
+}
+
 function hydrateData(raw) {
   const base = raw || demoData;
   return {
@@ -329,7 +337,7 @@ function hydrateData(raw) {
       ...emptyCanvas(),
       ...item,
       purchaseSite: item.purchaseSite || "",
-      canvasType: item.canvasType || "square",
+      canvasType: normalizeCanvasType(item.canvasType),
       squareStock: {
         ...makeStockMap(canvasSquareSizes),
         ...(item.squareStock || {}),
@@ -444,10 +452,22 @@ function getCompactRows(tab, item) {
   }
 
   if (tab === "canvas") {
-    const type = item.canvasType || "square";
+    const type = normalizeCanvasType(item.canvasType);
 
-    if (type === "square") {
+    if (type === "squareFull") {
       return canvasSquareSizes.map((size) => ({
+        key: `square-${size}`,
+        label: `${size}`,
+        qty: safeNumber(item.squareStock?.[size]),
+        alertQty: safeNumber(item.squareAlert?.[size]),
+        history: item.squareHistory?.[size] || [],
+        lastIn: item.squareLastInDate?.[size] || "",
+        lastOut: item.squareLastOutDate?.[size] || "",
+      }));
+    }
+
+    if (type === "squareShort") {
+      return canvasSquareShortSizes.map((size) => ({
         key: `square-${size}`,
         label: `${size}`,
         qty: safeNumber(item.squareStock?.[size]),
@@ -518,7 +538,7 @@ function normalizeDbItem(row) {
       ...emptyCanvas(),
       ...base,
       purchaseSite: row.stock_data?.purchaseSite || "",
-      canvasType: row.stock_data?.canvasType || "square",
+      canvasType: normalizeCanvasType(row.stock_data?.canvasType),
       squareStock: row.stock_data?.squareStock || makeStockMap(canvasSquareSizes),
       rectStock: row.stock_data?.rectStock || makeStockMap(canvasRectSizes),
       squareAlert: row.alert_data?.squareAlert || makeStockMap(canvasSquareSizes),
@@ -597,7 +617,7 @@ function buildPayload(tab, item) {
   if (tab === "canvas") {
     payload.stock_data = {
       purchaseSite: item.purchaseSite || "",
-      canvasType: item.canvasType || "square",
+      canvasType: normalizeCanvasType(item.canvasType),
       squareStock: item.squareStock,
       rectStock: item.rectStock,
     };
@@ -1259,6 +1279,11 @@ function App() {
                               title="직사각형 형태 (3040 / 4060 / 5070)"
                               rows={rows}
                             />
+                          ) : item.canvasType === "squareShort" ? (
+                            <DetailSection
+                              title="정사각형 형태 (4040 / 6060)"
+                              rows={rows}
+                            />
                           ) : (
                             <DetailSection
                               title="정사각형 형태 (4040 / 6060 / 7070)"
@@ -1458,11 +1483,12 @@ function App() {
                 </Field>
                 <Field label="캔버스 형태 선택">
                   <select
-                    value={form.canvasType || "square"}
+                    value={form.canvasType || "squareFull"}
                     onChange={(e) => setForm({ ...form, canvasType: e.target.value })}
                     className={inputClass}
                   >
-                    <option value="square">정사각형 타입 (4040 / 6060 / 7070)</option>
+                    <option value="squareFull">정사각형 타입 (4040 / 6060 / 7070)</option>
+                    <option value="squareShort">정사각형 타입 (4040 / 6060)</option>
                     <option value="rect">직사각형 타입 (3040 / 4060 / 5070)</option>
                   </select>
                 </Field>
@@ -1506,8 +1532,16 @@ function App() {
                   />
                 ) : (
                   <SizeEditor
-                    title="정사각형 형태 관리 (4040 / 6060 / 7070)"
-                    sizes={canvasSquareSizes}
+                    title={
+                      form.canvasType === "squareShort"
+                        ? "정사각형 형태 관리 (4040 / 6060)"
+                        : "정사각형 형태 관리 (4040 / 6060 / 7070)"
+                    }
+                    sizes={
+                      form.canvasType === "squareShort"
+                        ? canvasSquareShortSizes
+                        : canvasSquareSizes
+                    }
                     values={form.squareStock}
                     alertValues={form.squareAlert}
                     inDateValues={form.squareLastInDate}
