@@ -87,6 +87,7 @@ const emptyCanvas = () => ({
   name: "",
   site: "",
   purchaseSite: "",
+  canvasType: "square",
   squareStock: makeStockMap(canvasSquareSizes),
   squareAlert: makeStockMap(canvasSquareSizes),
   squareLastInDate: makeDateMap(canvasSquareSizes),
@@ -175,6 +176,7 @@ const demoData = {
       name: "선셋 오렌지",
       site: "https://example.com/canvas-1",
       purchaseSite: "https://supplier.example.com/canvas-1",
+      canvasType: "square",
       squareStock: { "4040": 5, "6060": 3, "7070": 1 },
       squareAlert: { "4040": 2, "6060": 2, "7070": 1 },
       squareLastInDate: {
@@ -327,6 +329,7 @@ function hydrateData(raw) {
       ...emptyCanvas(),
       ...item,
       purchaseSite: item.purchaseSite || "",
+      canvasType: item.canvasType || "square",
       squareStock: {
         ...makeStockMap(canvasSquareSizes),
         ...(item.squareStock || {}),
@@ -441,8 +444,10 @@ function getCompactRows(tab, item) {
   }
 
   if (tab === "canvas") {
-    return [
-      ...canvasSquareSizes.map((size) => ({
+    const type = item.canvasType || "square";
+
+    if (type === "square") {
+      return canvasSquareSizes.map((size) => ({
         key: `square-${size}`,
         label: `${size}`,
         qty: safeNumber(item.squareStock?.[size]),
@@ -450,17 +455,18 @@ function getCompactRows(tab, item) {
         history: item.squareHistory?.[size] || [],
         lastIn: item.squareLastInDate?.[size] || "",
         lastOut: item.squareLastOutDate?.[size] || "",
-      })),
-      ...canvasRectSizes.map((size) => ({
-        key: `rect-${size}`,
-        label: `${size}`,
-        qty: safeNumber(item.rectStock?.[size]),
-        alertQty: safeNumber(item.rectAlert?.[size]),
-        history: item.rectHistory?.[size] || [],
-        lastIn: item.rectLastInDate?.[size] || "",
-        lastOut: item.rectLastOutDate?.[size] || "",
-      })),
-    ];
+      }));
+    }
+
+    return canvasRectSizes.map((size) => ({
+      key: `rect-${size}`,
+      label: `${size}`,
+      qty: safeNumber(item.rectStock?.[size]),
+      alertQty: safeNumber(item.rectAlert?.[size]),
+      history: item.rectHistory?.[size] || [],
+      lastIn: item.rectLastInDate?.[size] || "",
+      lastOut: item.rectLastOutDate?.[size] || "",
+    }));
   }
 
   return aluminumSizes.map((size) => ({
@@ -512,6 +518,7 @@ function normalizeDbItem(row) {
       ...emptyCanvas(),
       ...base,
       purchaseSite: row.stock_data?.purchaseSite || "",
+      canvasType: row.stock_data?.canvasType || "square",
       squareStock: row.stock_data?.squareStock || makeStockMap(canvasSquareSizes),
       rectStock: row.stock_data?.rectStock || makeStockMap(canvasRectSizes),
       squareAlert: row.alert_data?.squareAlert || makeStockMap(canvasSquareSizes),
@@ -590,6 +597,7 @@ function buildPayload(tab, item) {
   if (tab === "canvas") {
     payload.stock_data = {
       purchaseSite: item.purchaseSite || "",
+      canvasType: item.canvasType || "square",
       squareStock: item.squareStock,
       rectStock: item.rectStock,
     };
@@ -1246,14 +1254,17 @@ function App() {
 
                       {tab === "canvas" && (
                         <div className="space-y-4">
-                          <DetailSection
-                            title="정사각형 형태"
-                            rows={rows.filter((r) => r.key.startsWith("square-"))}
-                          />
-                          <DetailSection
-                            title="직사각형 형태"
-                            rows={rows.filter((r) => r.key.startsWith("rect-"))}
-                          />
+                          {item.canvasType === "rect" ? (
+                            <DetailSection
+                              title="직사각형 형태 (3040 / 4060 / 5070)"
+                              rows={rows}
+                            />
+                          ) : (
+                            <DetailSection
+                              title="정사각형 형태 (4040 / 6060 / 7070)"
+                              rows={rows}
+                            />
+                          )}
                         </div>
                       )}
 
@@ -1445,78 +1456,92 @@ function App() {
                     placeholder="https://supplier..."
                   />
                 </Field>
-                <SizeEditor
-                  title="정사각형 형태 관리"
-                  sizes={canvasSquareSizes}
-                  values={form.squareStock}
-                  alertValues={form.squareAlert}
-                  inDateValues={form.squareLastInDate}
-                  outDateValues={form.squareLastOutDate}
-                  movementValues={form.squareMovementDraft}
-                  onChange={(size, value) => updateNested("squareStock", size, value)}
-                  onAlertChange={(size, value) => updateNested("squareAlert", size, value)}
-                  onMovementChange={(size, field, value) =>
-                    updateMovement("squareMovementDraft", size, field, value)
-                  }
-                  onApplyIn={(size) =>
-                    applyMovement(
-                      "squareStock",
-                      "squareLastInDate",
-                      "squareLastOutDate",
-                      "squareMovementDraft",
-                      "squareHistory",
-                      size,
-                      "in"
-                    )
-                  }
-                  onApplyOut={(size) =>
-                    applyMovement(
-                      "squareStock",
-                      "squareLastInDate",
-                      "squareLastOutDate",
-                      "squareMovementDraft",
-                      "squareHistory",
-                      size,
-                      "out"
-                    )
-                  }
-                />
-                <SizeEditor
-                  title="직사각형 형태 관리"
-                  sizes={canvasRectSizes}
-                  values={form.rectStock}
-                  alertValues={form.rectAlert}
-                  inDateValues={form.rectLastInDate}
-                  outDateValues={form.rectLastOutDate}
-                  movementValues={form.rectMovementDraft}
-                  onChange={(size, value) => updateNested("rectStock", size, value)}
-                  onAlertChange={(size, value) => updateNested("rectAlert", size, value)}
-                  onMovementChange={(size, field, value) =>
-                    updateMovement("rectMovementDraft", size, field, value)
-                  }
-                  onApplyIn={(size) =>
-                    applyMovement(
-                      "rectStock",
-                      "rectLastInDate",
-                      "rectLastOutDate",
-                      "rectMovementDraft",
-                      "rectHistory",
-                      size,
-                      "in"
-                    )
-                  }
-                  onApplyOut={(size) =>
-                    applyMovement(
-                      "rectStock",
-                      "rectLastInDate",
-                      "rectLastOutDate",
-                      "rectMovementDraft",
-                      "rectHistory",
-                      size,
-                      "out"
-                    )
-                  }
-                />
+                <Field label="캔버스 형태 선택">
+                  <select
+                    value={form.canvasType || "square"}
+                    onChange={(e) => setForm({ ...form, canvasType: e.target.value })}
+                    className={inputClass}
+                  >
+                    <option value="square">정사각형 타입 (4040 / 6060 / 7070)</option>
+                    <option value="rect">직사각형 타입 (3040 / 4060 / 5070)</option>
+                  </select>
+                </Field>
+
+                {form.canvasType === "rect" ? (
+                  <SizeEditor
+                    title="직사각형 형태 관리 (3040 / 4060 / 5070)"
+                    sizes={canvasRectSizes}
+                    values={form.rectStock}
+                    alertValues={form.rectAlert}
+                    inDateValues={form.rectLastInDate}
+                    outDateValues={form.rectLastOutDate}
+                    movementValues={form.rectMovementDraft}
+                    onChange={(size, value) => updateNested("rectStock", size, value)}
+                    onAlertChange={(size, value) => updateNested("rectAlert", size, value)}
+                    onMovementChange={(size, field, value) =>
+                      updateMovement("rectMovementDraft", size, field, value)
+                    }
+                    onApplyIn={(size) =>
+                      applyMovement(
+                        "rectStock",
+                        "rectLastInDate",
+                        "rectLastOutDate",
+                        "rectMovementDraft",
+                        "rectHistory",
+                        size,
+                        "in"
+                      )
+                    }
+                    onApplyOut={(size) =>
+                      applyMovement(
+                        "rectStock",
+                        "rectLastInDate",
+                        "rectLastOutDate",
+                        "rectMovementDraft",
+                        "rectHistory",
+                        size,
+                        "out"
+                      )
+                    }
+                  />
+                ) : (
+                  <SizeEditor
+                    title="정사각형 형태 관리 (4040 / 6060 / 7070)"
+                    sizes={canvasSquareSizes}
+                    values={form.squareStock}
+                    alertValues={form.squareAlert}
+                    inDateValues={form.squareLastInDate}
+                    outDateValues={form.squareLastOutDate}
+                    movementValues={form.squareMovementDraft}
+                    onChange={(size, value) => updateNested("squareStock", size, value)}
+                    onAlertChange={(size, value) => updateNested("squareAlert", size, value)}
+                    onMovementChange={(size, field, value) =>
+                      updateMovement("squareMovementDraft", size, field, value)
+                    }
+                    onApplyIn={(size) =>
+                      applyMovement(
+                        "squareStock",
+                        "squareLastInDate",
+                        "squareLastOutDate",
+                        "squareMovementDraft",
+                        "squareHistory",
+                        size,
+                        "in"
+                      )
+                    }
+                    onApplyOut={(size) =>
+                      applyMovement(
+                        "squareStock",
+                        "squareLastInDate",
+                        "squareLastOutDate",
+                        "squareMovementDraft",
+                        "squareHistory",
+                        size,
+                        "out"
+                      )
+                    }
+                  />
+                )}
               </div>
             )}
 
