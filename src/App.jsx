@@ -265,6 +265,20 @@ function safeNumber(value) {
   return Number.isFinite(n) && n >= 0 ? n : 0;
 }
 
+// 알림 기준 전용 (-1 = 알림 OFF, 0 이상 = 그 수치 이하일 때 알림)
+function safeAlertNumber(value) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return 0;
+  if (n < -1) return -1;
+  return n;
+}
+
+// 재고 부족 알림 판정 (-1이면 알림 OFF로 무시)
+function isLowStock(qty, alertQty) {
+  if (alertQty < 0) return false;
+  return qty <= alertQty;
+}
+
 // 항목에서 입고 사이트 URL을 꺼내는 헬퍼
 // - poster/canvas: item.purchaseSite
 // - aluminum: item.purchaseSiteByColor[item.color]
@@ -436,7 +450,7 @@ function getCompactRows(tab, item) {
       qty: safeNumber(
         useSquare ? item.squareStock?.[size] : item.rectStock?.[size]
       ),
-      alertQty: safeNumber(
+      alertQty: safeAlertNumber(
         useSquare ? item.squareAlert?.[size] : item.rectAlert?.[size]
       ),
       history: useSquare
@@ -459,7 +473,7 @@ function getCompactRows(tab, item) {
         key: `square-${size}`,
         label: `${size}`,
         qty: safeNumber(item.squareStock?.[size]),
-        alertQty: safeNumber(item.squareAlert?.[size]),
+        alertQty: safeAlertNumber(item.squareAlert?.[size]),
         history: item.squareHistory?.[size] || [],
         lastIn: item.squareLastInDate?.[size] || "",
         lastOut: item.squareLastOutDate?.[size] || "",
@@ -471,7 +485,7 @@ function getCompactRows(tab, item) {
         key: `square-${size}`,
         label: `${size}`,
         qty: safeNumber(item.squareStock?.[size]),
-        alertQty: safeNumber(item.squareAlert?.[size]),
+        alertQty: safeAlertNumber(item.squareAlert?.[size]),
         history: item.squareHistory?.[size] || [],
         lastIn: item.squareLastInDate?.[size] || "",
         lastOut: item.squareLastOutDate?.[size] || "",
@@ -482,7 +496,7 @@ function getCompactRows(tab, item) {
       key: `rect-${size}`,
       label: `${size}`,
       qty: safeNumber(item.rectStock?.[size]),
-      alertQty: safeNumber(item.rectAlert?.[size]),
+      alertQty: safeAlertNumber(item.rectAlert?.[size]),
       history: item.rectHistory?.[size] || [],
       lastIn: item.rectLastInDate?.[size] || "",
       lastOut: item.rectLastOutDate?.[size] || "",
@@ -493,7 +507,7 @@ function getCompactRows(tab, item) {
     key: size,
     label: size,
     qty: safeNumber(item.stockBySize?.[size]),
-    alertQty: safeNumber(item.alertBySize?.[size]),
+    alertQty: safeAlertNumber(item.alertBySize?.[size]),
     history: item.historyBySize?.[size] || [],
     lastIn: item.lastInDateBySize?.[size] || "",
     lastOut: item.lastOutDateBySize?.[size] || "",
@@ -730,7 +744,7 @@ function App() {
     sources.forEach(([category, items]) => {
       items.forEach((item) => {
         getCompactRows(category, item).forEach((row) => {
-          if (row.qty === 0 || row.qty <= row.alertQty) {
+          if (isLowStock(row.qty, row.alertQty)) {
             result.push({
               id: `${category}-${item.id}-${row.key}`,
               category,
@@ -763,7 +777,7 @@ function App() {
     if (!showLowStockOnly) return items;
 
     return items.filter((item) =>
-      getCompactRows(tab, item).some((row) => row.qty === 0 || row.qty <= row.alertQty)
+      getCompactRows(tab, item).some((row) => isLowStock(row.qty, row.alertQty))
     );
   }, [data, query, tab, showLowStockOnly]);
 
@@ -805,11 +819,18 @@ function App() {
   }
 
   function updateNested(group, size, value) {
+    // 알림 기준 그룹은 -1까지 허용 (-1 = 알림 OFF)
+    const isAlertGroup =
+      group === "rectAlert" ||
+      group === "squareAlert" ||
+      group === "alertBySize";
+    const parsed = isAlertGroup ? safeAlertNumber(value) : safeNumber(value);
+
     setForm((prev) => ({
       ...prev,
       [group]: {
         ...prev[group],
-        [size]: safeNumber(value),
+        [size]: parsed,
       },
     }));
   }
@@ -1015,6 +1036,7 @@ function App() {
               <p className="mt-2 text-sm text-slate-600">
                 목록은 한 줄 요약으로 보고, 클릭하면 상세가 열리도록 바꾼 버전입니다.
                 사이즈별 재고 알림 기준과 부족 품목 모아보기, 입고 사이트 바로가기를 지원합니다.
+                알림 기준에 <strong>-1</strong>을 입력하면 해당 사이즈의 알림이 꺼집니다.
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -1151,8 +1173,8 @@ function App() {
             filteredItems.map((item) => {
               const rows = getCompactRows(tab, item);
               const expanded = !!expandedIds[item.id];
-              const lowCount = rows.filter(
-                (row) => row.qty === 0 || row.qty <= row.alertQty
+              const lowCount = rows.filter((row) =>
+                isLowStock(row.qty, row.alertQty)
               ).length;
               const purchaseUrl = getPurchaseSite(tab, item);
 
@@ -1187,7 +1209,7 @@ function App() {
 
                     <div className="flex flex-wrap gap-2 md:justify-end">
                       {rows
-                        .filter((row) => row.qty === 0 || row.qty <= row.alertQty)
+                        .filter((row) => isLowStock(row.qty, row.alertQty))
                         .map((row) => (
                           <div
                             key={`low-${row.key}`}
@@ -1198,7 +1220,7 @@ function App() {
                         ))}
 
                       {rows
-                        .filter((row) => !(row.qty === 0 || row.qty <= row.alertQty))
+                        .filter((row) => !isLowStock(row.qty, row.alertQty))
                         .map((row) => (
                           <div
                             key={`normal-${row.key}`}
@@ -1680,7 +1702,8 @@ function DetailSection({ title, rows }) {
       <div className="mb-2 text-sm font-semibold text-slate-800">{title}</div>
       <div className="space-y-3">
         {rows.map((row) => {
-          const isLow = row.qty === 0 || row.qty <= row.alertQty;
+          const isLow = isLowStock(row.qty, row.alertQty);
+          const alertOff = row.alertQty < 0;
           return (
             <div
               key={row.key}
@@ -1695,10 +1718,18 @@ function DetailSection({ title, rows }) {
                     재고 부족
                   </span>
                 )}
+                {alertOff && (
+                  <span className="rounded-full bg-slate-200 px-2 py-0.5 text-xs font-medium text-slate-600">
+                    알림 OFF
+                  </span>
+                )}
               </div>
               <div className="mt-2 grid grid-cols-2 gap-2 text-sm md:grid-cols-4">
                 <InfoBox label="현재 재고" value={row.qty} />
-                <InfoBox label="알림 기준" value={row.alertQty} />
+                <InfoBox
+                  label="알림 기준"
+                  value={alertOff ? "OFF" : row.alertQty}
+                />
                 <InfoBox label="최근 입고일" value={formatDate(row.lastIn)} />
                 <InfoBox label="최근 출고일" value={formatDate(row.lastOut)} />
               </div>
@@ -1780,95 +1811,123 @@ function SizeEditor({
     <div>
       <div className="mb-3 text-sm font-semibold text-slate-800">{title}</div>
       <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
-        {sizes.map((size) => (
-          <div key={size} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-            <div className="mb-3 text-base font-semibold text-slate-700">사이즈 {size}</div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <div className="mb-1 text-xs text-slate-500">현재 재고</div>
-                <input
-                  type="number"
-                  min="0"
-                  value={values?.[size] ?? 0}
-                  onChange={(e) => onChange(size, e.target.value)}
-                  className={inputClass}
-                />
+        {sizes.map((size) => {
+          const alertVal = alertValues?.[size] ?? 0;
+          const alertOff = alertVal < 0;
+          return (
+            <div key={size} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+              <div className="mb-3 flex items-center justify-between">
+                <div className="text-base font-semibold text-slate-700">사이즈 {size}</div>
+                {alertOff && (
+                  <span className="rounded-full bg-slate-200 px-2 py-0.5 text-xs font-medium text-slate-600">
+                    알림 OFF
+                  </span>
+                )}
               </div>
-              <div>
-                <div className="mb-1 text-xs text-slate-500">재고 알림 기준</div>
-                <input
-                  type="number"
-                  min="0"
-                  value={alertValues?.[size] ?? 0}
-                  onChange={(e) => onAlertChange(size, e.target.value)}
-                  className={inputClass}
-                />
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <div className="mb-1 text-xs text-slate-500">현재 재고</div>
+                  <input
+                    type="number"
+                    min="0"
+                    value={values?.[size] ?? 0}
+                    onChange={(e) => onChange(size, e.target.value)}
+                    className={inputClass}
+                  />
+                </div>
+                <div>
+                  <div className="mb-1 text-xs text-slate-500">
+                    재고 알림 기준{" "}
+                    <span className="text-slate-400">(-1 입력 시 알림 OFF)</span>
+                  </div>
+                  <div className="flex gap-2">
+                    <input
+                      type="number"
+                      min="-1"
+                      value={alertVal}
+                      onChange={(e) => onAlertChange(size, e.target.value)}
+                      className={inputClass}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => onAlertChange(size, alertOff ? 0 : -1)}
+                      className={`shrink-0 rounded-2xl px-3 py-2.5 text-xs font-medium ${
+                        alertOff
+                          ? "bg-slate-900 text-white"
+                          : "border border-slate-300 bg-white text-slate-700"
+                      }`}
+                      title={alertOff ? "알림 켜기" : "알림 끄기"}
+                    >
+                      {alertOff ? "알림 ON" : "알림 OFF"}
+                    </button>
+                  </div>
+                </div>
+              </div>
+              <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
+                <div className="rounded-2xl bg-white p-3 ring-1 ring-slate-200">
+                  <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-slate-700">
+                    <ArrowDownToLine size={16} /> 입고 입력
+                  </div>
+                  <div className="mb-2 text-xs text-slate-500">입고 수량</div>
+                  <input
+                    type="number"
+                    min="0"
+                    value={movementValues?.[size]?.inQty ?? 0}
+                    onChange={(e) => onMovementChange(size, "inQty", e.target.value)}
+                    className={inputClass}
+                  />
+                  <div className="mb-2 mt-3 text-xs text-slate-500">입고 날짜</div>
+                  <input
+                    type="date"
+                    value={movementValues?.[size]?.inDate ?? ""}
+                    onChange={(e) => onMovementChange(size, "inDate", e.target.value)}
+                    className={inputClass}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => onApplyIn(size)}
+                    className="mt-3 w-full rounded-2xl bg-slate-900 px-4 py-2.5 text-sm font-medium text-white"
+                  >
+                    입고 반영
+                  </button>
+                  <div className="mt-2 text-xs text-slate-500">
+                    최근 입고일: {formatDate(inDateValues?.[size])}
+                  </div>
+                </div>
+                <div className="rounded-2xl bg-white p-3 ring-1 ring-slate-200">
+                  <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-slate-700">
+                    <ArrowUpFromLine size={16} /> 출고 입력
+                  </div>
+                  <div className="mb-2 text-xs text-slate-500">출고 수량</div>
+                  <input
+                    type="number"
+                    min="0"
+                    value={movementValues?.[size]?.outQty ?? 0}
+                    onChange={(e) => onMovementChange(size, "outQty", e.target.value)}
+                    className={inputClass}
+                  />
+                  <div className="mb-2 mt-3 text-xs text-slate-500">출고 날짜</div>
+                  <input
+                    type="date"
+                    value={movementValues?.[size]?.outDate ?? ""}
+                    onChange={(e) => onMovementChange(size, "outDate", e.target.value)}
+                    className={inputClass}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => onApplyOut(size)}
+                    className="mt-3 w-full rounded-2xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-900"
+                  >
+                    출고 반영
+                  </button>
+                  <div className="mt-2 text-xs text-slate-500">
+                    최근 출고일: {formatDate(outDateValues?.[size])}
+                  </div>
+                </div>
               </div>
             </div>
-            <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
-              <div className="rounded-2xl bg-white p-3 ring-1 ring-slate-200">
-                <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-slate-700">
-                  <ArrowDownToLine size={16} /> 입고 입력
-                </div>
-                <div className="mb-2 text-xs text-slate-500">입고 수량</div>
-                <input
-                  type="number"
-                  min="0"
-                  value={movementValues?.[size]?.inQty ?? 0}
-                  onChange={(e) => onMovementChange(size, "inQty", e.target.value)}
-                  className={inputClass}
-                />
-                <div className="mb-2 mt-3 text-xs text-slate-500">입고 날짜</div>
-                <input
-                  type="date"
-                  value={movementValues?.[size]?.inDate ?? ""}
-                  onChange={(e) => onMovementChange(size, "inDate", e.target.value)}
-                  className={inputClass}
-                />
-                <button
-                  type="button"
-                  onClick={() => onApplyIn(size)}
-                  className="mt-3 w-full rounded-2xl bg-slate-900 px-4 py-2.5 text-sm font-medium text-white"
-                >
-                  입고 반영
-                </button>
-                <div className="mt-2 text-xs text-slate-500">
-                  최근 입고일: {formatDate(inDateValues?.[size])}
-                </div>
-              </div>
-              <div className="rounded-2xl bg-white p-3 ring-1 ring-slate-200">
-                <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-slate-700">
-                  <ArrowUpFromLine size={16} /> 출고 입력
-                </div>
-                <div className="mb-2 text-xs text-slate-500">출고 수량</div>
-                <input
-                  type="number"
-                  min="0"
-                  value={movementValues?.[size]?.outQty ?? 0}
-                  onChange={(e) => onMovementChange(size, "outQty", e.target.value)}
-                  className={inputClass}
-                />
-                <div className="mb-2 mt-3 text-xs text-slate-500">출고 날짜</div>
-                <input
-                  type="date"
-                  value={movementValues?.[size]?.outDate ?? ""}
-                  onChange={(e) => onMovementChange(size, "outDate", e.target.value)}
-                  className={inputClass}
-                />
-                <button
-                  type="button"
-                  onClick={() => onApplyOut(size)}
-                  className="mt-3 w-full rounded-2xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-900"
-                >
-                  출고 반영
-                </button>
-                <div className="mt-2 text-xs text-slate-500">
-                  최근 출고일: {formatDate(outDateValues?.[size])}
-                </div>
-              </div>
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
